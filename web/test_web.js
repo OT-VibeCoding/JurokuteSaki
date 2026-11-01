@@ -51,6 +51,12 @@ async function finishQuery(){
     if (!ok) bad++;
     console.log(`シード${g.seed}: ${ok ? '同じ' : `${same + 1}手目で違う`}(${same}/${g.moves.length}手、${((Date.now() - t0) / Math.max(1, same)).toFixed(0)}ms/手)`);
   }
-  console.log(bad ? `NG: ${ref.games.length}局中 ${bad}局が違う` : `OK: ${ref.games.length}局すべて同じ手`);
+  const sum = bad ? `NG: ${ref.games.length}局中 ${bad}局が違う` : `OK: ${ref.games.length}局すべて同じ手`;
+  console.log(sum);
+  if (bad && process.env.GITHUB_ACTIONS) console.log(`::error::${sum}`);   // 注記はログインしなくても読める
   process.exit(bad ? 1 : 0);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  if (process.env.GITHUB_ACTIONS) console.log(`::error::止まった: ${String(e && e.stack || e).replace(/\n/g, '%0A')}`);
+  process.exit(1);
+});

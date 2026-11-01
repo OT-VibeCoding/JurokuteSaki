@@ -44,7 +44,14 @@ jobs:
       - name: 確かめ 1/2 - C++ の読みの答えが手本と同じか
         run: node web/test_queries.js --wasm dist/ai/finish_wasm.js
 
+      # 切り分け用: 同じ C++ を Linux 用にも作って比べる(違うなら WebAssembly ではなく C++ が PC の種類で答えを変えている)。
+      # 1/2 が失敗しても走らせる。公開(upload-pages-artifact)は、すべての確かめが通ったときだけ
+      - name: 切り分け - Linux 用の C++ でも手本と同じか
+        if: always()
+        run: g++ -O2 -std=c++17 native/finish.cpp -o finish_linux && node web/test_queries.js --exe ./finish_linux
+
       - name: 確かめ 2/2 - 3局を打ち直して手本と同じ手か
+        if: always()
         run: node web/test_web.js --wasm dist/ai/finish_wasm.js --dist dist
 
       - uses: actions/upload-pages-artifact@v3

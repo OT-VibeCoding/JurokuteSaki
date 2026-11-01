@@ -27,15 +27,24 @@ async function answers(){
   return qs.map(l => q(l).replace(/\n$/, ''));
 }
 
+// GitHub Actions では、違いを注記(::error::)にも書く(記録の本文はログインしないと読めないが、注記は読めるため)
+const GHA = !!process.env.GITHUB_ACTIONS;
+const note = (s) => GHA && console.log(`::error::${s.replace(/\n/g, '%0A')}`);
+
 answers().then((got) => {
   let bad = 0;
+  const kinds = {};
   for (let i = 0; i < want.length; i++){
     if (got[i] !== want[i]){
-      if (bad < 3) console.log(`違う ${i + 1}番目: ${qs[i].slice(0, 60)}…\n  手本 ${want[i].slice(0, 120)}\n  答え ${String(got[i]).slice(0, 120)}`);
+      const msg = `違う ${i + 1}番目: ${qs[i].slice(0, 60)}…\n  手本 ${want[i].slice(0, 200)}\n  答え ${String(got[i]).slice(0, 200)}`;
+      if (bad < 3){ console.log(msg); note(msg); }
+      kinds[qs[i][0]] = (kinds[qs[i][0]] || 0) + 1;
       bad++;
     }
   }
   if (got.length !== want.length) console.log(`答えの数が違う: 手本 ${want.length} / 答え ${got.length}`);
-  console.log(bad || got.length !== want.length ? `NG: ${want.length}個中 ${bad}個が違う` : `OK: ${want.length}個すべて同じ答え`);
+  const sum = bad || got.length !== want.length ? `NG(${args.exe || args.wasm}): ${want.length}個中 ${bad}個が違う(問い合わせの種類ごと ${JSON.stringify(kinds)})` : `OK: ${want.length}個すべて同じ答え`;
+  console.log(sum);
+  if (bad || got.length !== want.length) note(sum);
   process.exit(bad || got.length !== want.length ? 1 : 0);
-}).catch((e) => { console.error(e); process.exit(1); });
+}).catch((e) => { console.error(e); note(`止まった(${args.exe || args.wasm}): ${e && e.stack || e}`); process.exit(1); });
