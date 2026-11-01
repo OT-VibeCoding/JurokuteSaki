@@ -1,0 +1,3081 @@
+<title>ターン制ぷよぷよ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14152b;
+    --panel:#1c1e3e;
+    --panel-2:#242659;
+    --border:#35376e;
+    --border-soft:#2a2c58;
+    --text:#f1f2ff;
+    --text-dim:#9497c4;
+    --accent:#ffb545;
+    --accent-ink:#3a2600;
+    --danger:#ff6161;
+    --ok:#4fd17d;
+    --cell-bg:#1a1c3d;
+    --cell-line:#2c2e5c;
+    --shadow: 0 12px 32px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f5f2ff;
+      --panel:#ffffff;
+      --panel-2:#f1edff;
+      --border:#ddd6f9;
+      --border-soft:#e7e1fb;
+      --text:#242244;
+      --text-dim:#716f9a;
+      --accent:#ff8a3d;
+      --accent-ink:#3a1c00;
+      --danger:#e0453f;
+      --ok:#1f9d57;
+      --cell-bg:#efecff;
+      --cell-line:#ddd6f9;
+      --shadow: 0 12px 32px rgba(80,60,160,.14);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f5f2ff;
+    --panel:#ffffff;
+    --panel-2:#f1edff;
+    --border:#ddd6f9;
+    --border-soft:#e7e1fb;
+    --text:#242244;
+    --text-dim:#716f9a;
+    --accent:#ff8a3d;
+    --accent-ink:#3a1c00;
+    --danger:#e0453f;
+    --ok:#1f9d57;
+    --cell-bg:#efecff;
+    --cell-line:#ddd6f9;
+    --shadow: 0 12px 32px rgba(80,60,160,.14);
+  }
+  :root[data-theme="dark"]{
+    --bg:#14152b;
+    --panel:#1c1e3e;
+    --panel-2:#242659;
+    --border:#35376e;
+    --border-soft:#2a2c58;
+    --text:#f1f2ff;
+    --text-dim:#9497c4;
+    --accent:#ffb545;
+    --accent-ink:#3a2600;
+    --danger:#ff6161;
+    --ok:#4fd17d;
+    --cell-bg:#1a1c3d;
+    --cell-line:#2c2e5c;
+    --shadow: 0 12px 32px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif;
+    padding-inline:16px;
+    padding-block:24px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:20px;
+    min-height:100%;
+  }
+
+  .wrap{width:100%;max-width:920px;display:flex;flex-direction:column;gap:18px;}
+
+  header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px 20px;}
+  h1{
+    font-family:'Kiwi Maru', 'Zen Kaku Gothic New', sans-serif;
+    font-weight:500;
+    font-size:clamp(22px,4vw,30px);
+    margin:0;
+    letter-spacing:.02em;
+  }
+  .sub{color:var(--text-dim);font-size:13px;margin:0;}
+  .ver-badge{display:inline-block;vertical-align:middle;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--accent);background:var(--panel-2);letter-spacing:.02em;}
+
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  /* ローカルAIサーバに接続できたときだけ現れる、対戦相手の選択 */
+  .server-box{
+    display:flex;align-items:center;gap:7px;
+    padding:5px 10px 5px 9px;border-radius:10px;
+    border:1px solid var(--border);background:var(--panel);
+  }
+  .server-box .server-dot{
+    width:8px;height:8px;border-radius:50%;background:#37d67a;
+    box-shadow:0 0 0 3px rgba(55,214,122,.18);flex:none;
+  }
+  .server-box select{
+    font-family:inherit;font-size:13px;font-weight:700;
+    color:var(--text);background:transparent;border:0;outline:none;cursor:pointer;
+  }
+  .server-box select option{color:#111;}
+  button{
+    font-family:inherit;
+    font-weight:700;
+    font-size:13px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:var(--panel);
+    color:var(--text);
+    padding:9px 16px;
+    cursor:pointer;
+    transition:transform .08s ease, background .15s ease, border-color .15s ease;
+  }
+  button:hover{border-color:var(--accent);}
+  button:active{transform:scale(.96);}
+  button.primary{
+    background:var(--accent);
+    color:var(--accent-ink);
+    border-color:var(--accent);
+  }
+
+  /* 隠す印(hidden)を、display を指定した部品でも必ず効かせる(v0.10.75。ログ欄が display:flex のせいで閉じなかった) */
+  [hidden]{display:none !important;}
+  /* 設定(v0.10.76): 色の候補。チェック = 今使っている色、薄いチェック = 変えようとしている色 */
+  .set-label{font-size:13px;font-weight:700;min-width:7em;}
+  .swatches{display:flex;flex-wrap:wrap;gap:8px;}
+  .swatch{width:36px;height:36px;border-radius:50%;border:2px solid var(--border-soft);cursor:pointer;position:relative;padding:0;}
+  .swatch:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .swatch .chk{position:absolute;inset:0;display:none;place-items:center;font-size:20px;font-weight:900;color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;}
+  .swatch.on .chk{display:grid;}
+  .swatch.on{border-color:var(--text);}
+  .swatch.editing .chk{opacity:.3;}
+  .swatch.editing{border-style:dashed;}
+  /* 対戦ログ・再生 */
+  .log-panel,.replay-bar{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+  .log-panel h3{margin:0;font-size:14px;color:var(--text);}
+  .log-panel .hint{margin:0;font-size:12px;color:var(--text-dim);}
+  .log-panel textarea{width:100%;box-sizing:border-box;min-height:64px;resize:vertical;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--text);background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;word-break:break-all;}
+  .log-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .log-msg{font-size:12px;color:var(--text-dim);min-height:1em;}
+  .log-msg.err{color:var(--danger);}
+  .replay-bar .log-row button{min-width:44px;}
+  .replay-bar input[type=range]{flex:1 1 200px;min-width:0;accent-color:var(--accent);}
+  .replay-bar select{font:inherit;font-size:13px;padding:6px 8px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);}
+  .replay-info{font-size:13px;color:var(--text);font-variant-numeric:tabular-nums;}
+  .replay-info b{color:var(--accent);}
+  .turn-banner{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    background:var(--panel-2);
+    border:1px solid var(--border-soft);
+    border-radius:999px;
+    padding:8px 18px;
+    font-size:13px;
+    font-weight:700;
+    color:var(--text-dim);
+  }
+  .turn-banner .dot{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  .turn-banner b{color:var(--text);}
+
+  .boards{
+    display:flex;
+    gap:18px;
+    align-items:flex-start;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+
+  .board-card{
+    background:var(--panel);
+    border:2px solid var(--border-soft);
+    border-radius:18px;
+    padding:14px;
+    box-shadow:var(--shadow);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    width:290px;
+    transition:border-color .2s ease, box-shadow .2s ease;
+    position:relative;
+  }
+  .board-card.active{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent), var(--shadow);
+  }
+  .board-card.over{opacity:.55;}
+
+  .board-head{display:flex;align-items:center;justify-content:space-between;}
+  .head-left{display:flex;align-items:center;gap:8px;}
+  .player-name{
+    font-family:'Kiwi Maru', sans-serif;
+    font-size:17px;
+  }
+  .player-name.p0{color:var(--danger);}
+  .player-name.p1{color:#4f8dff;}
+  .ai-toggle{
+    font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;
+  }
+  .ai-toggle.primary{background:var(--ok);color:var(--accent-ink);border-color:var(--ok);}
+  .turn-pill{
+    font-size:11px;font-weight:700;
+    background:var(--accent);color:var(--accent-ink);
+    border-radius:999px;padding:2px 9px;
+    opacity:0;transform:translateY(-2px);
+    transition:opacity .15s ease, transform .15s ease;
+  }
+  .board-card.active .turn-pill{opacity:1;transform:none;}
+
+  canvas{display:block;background:var(--cell-bg);border-radius:10px;border:1px solid var(--border-soft);}
+
+  .board-main{display:flex;gap:6px;justify-content:center;}
+  .board-col{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+  .ojama-preview{background:transparent;border:none;border-radius:0;width:204px;height:16px;flex-shrink:0;}
+  .next-canvas{background:var(--cell-bg);border:1px solid var(--border-soft);border-radius:8px;width:48px;flex-shrink:0;}
+
+  .stats-row{display:flex;gap:6px;}
+  .stats-row .stat{flex:1;align-items:center;text-align:center;}
+
+  .stat{display:flex;flex-direction:column;gap:2px;}
+  .stat .k{font-size:10px;color:var(--text-dim);font-weight:700;letter-spacing:.03em;}
+  .stat .v{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .stat .v.warn{color:var(--danger);}
+
+  .cost-gauge{display:flex;gap:3px;}
+  .cost-gauge i{
+    flex:1;height:7px;border-radius:4px;background:var(--border-soft);
+  }
+  .cost-gauge i.on{background:var(--accent);}
+
+  .board-footer{display:flex;flex-direction:column;gap:6px;}
+  .stat-row{display:flex;align-items:baseline;justify-content:space-between;}
+  .stat-row .k{font-size:10px;color:var(--text-dim);font-weight:700;letter-spacing:.03em;}
+  .stat-row .v{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;}
+
+  .controls-note{
+    display:flex;justify-content:center;gap:18px;flex-wrap:wrap;
+    font-size:11.5px;color:var(--text-dim);
+  }
+  .controls-note b{color:var(--text);}
+
+  .overlay{
+    position:fixed;inset:0;background:rgba(10,10,20,.62);
+    display:none;align-items:center;justify-content:center;padding:20px;z-index:20;
+  }
+  .overlay.show{display:flex;}
+  .overlay-card{
+    background:var(--panel);border:1px solid var(--border);border-radius:18px;
+    padding:28px 32px;text-align:center;box-shadow:var(--shadow);max-width:320px;
+  }
+  .overlay-card h2{font-family:'Kiwi Maru',sans-serif;font-size:24px;margin:0 0 6px;}
+  .overlay-card p{color:var(--text-dim);font-size:13px;margin:0 0 18px;}
+
+  @media (max-width:640px){
+    .boards{flex-direction:column;align-items:center;}
+    .board-card{width:min(100%,340px);}
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>ターン制ぷよぷよ <span class="ver-badge" id="aiVersion" title="内蔵の探索AIの版"></span></h1>
+      <p class="sub">コスト制の手番交代・連鎖・おじゃまぷよ ― 仕様書どおりのルールをブラウザで</p>
+    </div>
+    <div class="toolbar">
+      <label id="serverBox" class="server-box" style="display:none" title="お手元のPCで動いているAIサーバと対戦します">
+        <span class="server-dot"></span>
+        <select id="aiKind"></select>
+      </label>
+      <button id="btnSolo" title="1P・2Pを同じキーで操作します(手番側を自動で操作)">🎮 ひとり操作</button>
+      <button id="btnLog" title="対戦ログのコピー・貼り付けて再生">📜 ログ</button>
+      <button id="btnSettings" title="テーマ・ぷよの色と形">⚙ 設定</button>
+      <button id="btnNew" class="primary">🔁 New Match</button>
+    </div>
+  </header>
+
+  <div class="turn-banner" id="turnBanner"><span class="dot"></span><span id="turnText">1Pの手番です</span></div>
+
+  <div class="log-panel" id="settingsPanel" hidden>
+    <h3>設定</h3>
+    <div class="log-row"><span class="set-label">テーマ</span><button id="btnThemeDark" type="button">ダーク</button><button id="btnThemeLight" type="button">ライト</button></div>
+    <p class="hint">ぷよの色: チェックの付いた色が今の4色です。変えたい色をクリックしてから、移したい色をクリックしてください(チェック済みの色なら入れ替え、同じ色をもう一度クリックでやめる)。</p>
+    <div class="swatches" id="colorSwatches"></div>
+    <p class="hint">おじゃまの色</p>
+    <div class="swatches" id="ojamaSwatches"></div>
+    <div class="log-row"><span class="set-label">形で見分ける</span><button id="btnShapes" type="button"></button><span class="log-msg">丸・四角・ひし形・星、おじゃまは逆向きの三角</span></div>
+  </div>
+
+  <div class="log-panel" id="logPanel" hidden>
+    <h3>対戦ログ</h3>
+    <p class="hint">ツモの並びと、置いた手（列と子ぷよの向き）を1行の文字列にしたものです。「コピー」で今の対戦のログ(対戦中はその時点まで)をコピーできます。再生するときはログを貼り付けてください。</p>
+    <textarea id="logIn" placeholder="PT1~…" aria-label="再生するログ"></textarea>
+    <div class="log-row"><button id="btnLogPlay" class="primary">▶ 再生する</button><button id="btnLogCopy">📋 コピー</button><span class="log-msg" id="logPlayMsg"></span></div>
+  </div>
+
+  <div class="replay-bar" id="replayBar" hidden>
+    <div class="log-row">
+      <span class="replay-info" id="replayInfo"></span>
+    </div>
+    <div class="log-row">
+      <button id="rpFirst" title="最初へ">⏮</button>
+      <button id="rpPrev" title="1手戻す">◀</button>
+      <button id="rpNext" title="1手進める">▶</button>
+      <button id="rpLast" title="最後へ">⏭</button>
+      <input type="range" id="rpSlider" min="0" max="0" value="0" aria-label="手数">
+      <button id="rpAuto" title="自動再生">⏵ 自動</button>
+      <select id="rpSpeed" aria-label="再生の速さ(連鎖の演出と自動再生)" title="再生の速さ(連鎖の演出と自動再生)"><option value="1200">ゆっくり</option><option value="600" selected>ふつう</option><option value="250">はやい</option></select>
+    </div>
+    <div class="log-row">
+      <button id="rpBranch" class="primary">🎮 この盤面から対戦する</button>
+      <button id="rpExit">再生をやめる</button>
+      <span class="log-msg">←→キーでも1手ずつ動かせます。対戦する側は「🤖 CPU」で選べます。</span>
+    </div>
+  </div>
+
+  <div class="boards">
+    <div class="board-card" id="card0">
+      <div class="board-head">
+        <div class="head-left">
+          <span class="player-name p0">1P</span>
+          <button class="ai-toggle" id="aiToggle0" title="1PをAIに操作させます">🤖 CPU</button>
+        </div>
+        <span class="turn-pill">手番</span>
+      </div>
+      <div class="board-main">
+        <div class="board-col">
+          <canvas class="ojama-preview" id="ojamaPrev0" width="204" height="16" title="おじゃまが降る予告位置"></canvas>
+          <canvas id="board0" width="204" height="510"></canvas>
+        </div>
+        <canvas class="next-canvas" id="next0" width="48" height="510"></canvas>
+      </div>
+      <div class="stats-row">
+        <div class="stat"><span class="k">SCORE</span><span class="v" id="score0">0</span></div>
+        <div class="stat"><span class="k">最大連鎖</span><span class="v" id="chain0">0</span></div>
+        <div class="stat"><span class="k">おじゃま予告</span><span class="v" id="ojama0">0</span></div>
+      </div>
+      <div class="board-footer">
+        <div class="stat-row"><span class="k">残り手数</span><span class="v" id="costNum0">0.0</span></div>
+        <div class="cost-gauge" id="cost0"></div>
+      </div>
+    </div>
+
+    <div class="board-card" id="card1">
+      <div class="board-head">
+        <div class="head-left">
+          <span class="player-name p1">2P</span>
+          <button class="ai-toggle" id="aiToggle1" title="2PをAIに操作させます">🤖 CPU</button>
+        </div>
+        <span class="turn-pill">手番</span>
+      </div>
+      <div class="board-main">
+        <canvas class="next-canvas" id="next1" width="48" height="510"></canvas>
+        <div class="board-col">
+          <canvas class="ojama-preview" id="ojamaPrev1" width="204" height="16" title="おじゃまが降る予告位置"></canvas>
+          <canvas id="board1" width="204" height="510"></canvas>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat"><span class="k">SCORE</span><span class="v" id="score1">0</span></div>
+        <div class="stat"><span class="k">最大連鎖</span><span class="v" id="chain1">0</span></div>
+        <div class="stat"><span class="k">おじゃま予告</span><span class="v" id="ojama1">0</span></div>
+      </div>
+      <div class="board-footer">
+        <div class="stat-row"><span class="k">残り手数</span><span class="v" id="costNum1">0.0</span></div>
+        <div class="cost-gauge" id="cost1"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls-note" id="controlsNote">
+    <span><b>1P</b>: ←→移動 / ↓設置 / Z・X 回転</span>
+    <span><b>2P</b>: A D 移動 / S 設置 / Q・E 回転</span>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-card">
+    <h2 id="overlayTitle">1P WIN!</h2>
+    <p id="overlaySub">2P の盤面が埋まりました</p>
+    <div class="log-row" style="justify-content:center"><button class="primary" id="btnAgain">もう一度あそぶ</button><button id="btnOverlayLog">📜 ログ・再生</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // 探索AIの版(puyo_search)。VERSIONファイルと同じ値にする(tools/set_version.py で更新)
+  const AI_VERSION = '0.10.1';
+  { const el = document.getElementById('aiVersion'); if (el) el.textContent = '探索AI puyo_search v' + AI_VERSION; }
+
+  // テーマ: 選んだものをブラウザに覚えておき、次に開いたときに戻す(v0.10.73。今までは毎回 PC・画面の設定に戻っていた)。
+  // アドレスに ?theme=light / ?theme=dark を付けると、そちらを優先する(保存が効かないブラウザ向け)
+  const THEME_KEY = 'puyo.theme';
+  {
+    let saved = null;
+    try { saved = new URLSearchParams(location.search).get('theme'); } catch (e) {}
+    if (saved !== 'light' && saved !== 'dark'){ try { saved = localStorage.getItem(THEME_KEY); } catch (e) { saved = null; } }
+    if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved);
+  }
+
+  // ==== 定数(仕様書の決定値をそのまま採用) ====
+  const WIDTH = 6, HEIGHT = 13;
+  const GAMEOVER_X = 2, GAMEOVER_Y = 11;
+  const OJAMA_COLOR = 5;
+  const MAX_OJAMA_DROP = 30;
+  const OJAMA_RATE = 70;
+  const ONE_P_BONUS = 0.5, RENSA_TEZON = 1.5, CHIGIRI_TEZON = 0.5, OJAMA_TEZON = 1.0, DROP_BONUS = 10;
+  const GAME_STEP_MS = 260;
+  const OJAMA_ORDER = [0,3,2,4,1,5];
+
+  const RENSA_B = [0,0,8,16,32,64,96,128,160,192,224,256,288,320,352,384,416,448,480,512];
+  const RENKETSU_B = [0,0,0,0,0,2,3,4,5,6,7,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10];
+  const IROKAZU_B = [0,0,3,6,12,24];
+
+  const PUYO_HEX = {1:'#ff5b5b',2:'#4fd17d',3:'#4f8dff',4:'#ffd34f',5:'#8e8e8e'};
+
+  // ==== 色と形の設定(v0.10.76、shio さんの仕様) ====
+  // 見た目だけを変える。ゲームの中身(色の番号 1〜4・おじゃま 5)・AI・ログは変わらない。
+  // 候補: 今までの赤・緑・青・黄 + 色覚の違いがあっても見分けやすい Okabe–Ito の配色から6色。おじゃまは灰色3つから
+  const COLOR_CHOICES = [
+    { hex: '#ff5b5b', name: '赤' }, { hex: '#4fd17d', name: '緑' }, { hex: '#4f8dff', name: '青' }, { hex: '#ffd34f', name: '黄' },
+    { hex: '#D55E00', name: '朱色' }, { hex: '#E69F00', name: '橙' }, { hex: '#56B4E9', name: '空色' },
+    { hex: '#009E73', name: '青緑' }, { hex: '#0072B2', name: '濃い青' }, { hex: '#CC79A7', name: '赤紫' },
+  ];
+  const OJAMA_CHOICES = [ { hex: '#c8c8c8', name: '明るい灰色' }, { hex: '#8e8e8e', name: '灰色' }, { hex: '#9296c4', name: '紫がかった灰色' } ];
+  // 形で見分ける: 色の番号ごとの形(色を入れ替えても形はその番号について行く)。おじゃまは逆向きの三角
+  const PUYO_SHAPE = { 1: 'circle', 2: 'square', 3: 'diamond', 4: 'star', 5: 'triangleDown' };
+  const LOOK_KEY = 'puyo.look';
+  let shapeMode = false;
+  {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); } catch (e) { saved = null; }
+    if (saved && Array.isArray(saved.colors) && saved.colors.length === 4){
+      const ok = saved.colors.every(h => COLOR_CHOICES.some(c => c.hex === h)) && new Set(saved.colors).size === 4;
+      if (ok) saved.colors.forEach((h, i) => { PUYO_HEX[i + 1] = h; });
+    }
+    if (saved && OJAMA_CHOICES.some(c => c.hex === saved.ojama)) PUYO_HEX[5] = saved.ojama;
+    if (saved) shapeMode = !!saved.shapes;
+  }
+  function saveLook(){
+    try { localStorage.setItem(LOOK_KEY, JSON.stringify({ colors: [1, 2, 3, 4].map(k => PUYO_HEX[k]), ojama: PUYO_HEX[5], shapes: shapeMode })); } catch (e) {}
+  }
+
+  const UP=0, LEFT=1, DOWN=2, RIGHT=3;
+
+  // 16パターン(軸色1-4 × 子色1-4)。並びは仕様書どおり「16!通りの順列をシード値で共有」の対象。
+  const TSUMO_PATTERNS = [];
+  for (let axis=1; axis<=4; axis++){
+    for (let child=1; child<=4; child++){
+      TSUMO_PATTERNS.push({axis, child});
+    }
+  }
+
+  // ==== シード付き乱数(mulberry32) ====
+  function mulberry32(seed){
+    let t = seed >>> 0;
+    return function(){
+      t |= 0; t = (t + 0x6D2B79F5) | 0;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function generateTsumoOrder(seed){
+    const rng = mulberry32(seed);
+    const arr = [...Array(16).keys()];
+    for (let i = arr.length - 1; i > 0; i--){
+      const j = Math.floor(rng() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // ==== ゲーム状態 ====
+  let match = null;
+  let players = null;
+
+  function makeEmptyBoard(){
+    return Array.from({length: WIDTH}, () => new Array(HEIGHT).fill(0));
+  }
+
+  // ツモの並びを 16! 通りから、どれも同じ確率で1つ選ぶ(v0.10.80)。今までのシード(32ビット)からのシャッフルでは
+  // 約43億通りしか出なかった。暗号用の乱数で 0〜16!-1 の番号を引き(45ビットを引いて範囲外ならやり直し)、ログと同じ rankToPerm で並びにする
+  const FACT16 = 20922789888000;
+  function randomTsumoOrder(){
+    if (!(window.crypto && crypto.getRandomValues)) return null;
+    const u = new Uint32Array(2);
+    for (;;){
+      crypto.getRandomValues(u);
+      const rank = u[0] * 8192 + (u[1] & 8191);   // 32 + 13 = 45ビット(2^45 ≒ 3.5×10^13 > 16!)
+      if (rank < FACT16) return rankToPerm(rank, 16);
+    }
+  }
+
+  function newMatch(seed){
+    stopReplayUI();
+    const fixed = seed != null;   // シードを渡したときは今まで通り(同じシードなら同じ並び)
+    seed = fixed ? seed : ((Date.now() ^ Math.floor(Math.random()*1e9)) >>> 0);   // シードは対戦の番号(サーバーの記録用)にも使う
+    match = {
+      seed,
+      order: (!fixed && randomTsumoOrder()) || generateTsumoOrder(seed),
+      active: 0,
+      winner: null,
+      animating: false,
+      log: { startedAt: new Date(), moves: [] },   // 対戦ログ(置いた手を順に記録)
+    };
+    players = [0,1].map(p => ({
+      board: makeEmptyBoard(),
+      cost: p === 0 ? ONE_P_BONUS : 0,
+      point: 0,
+      totalPoint: 0,
+      ojamaYokoku: 0,
+      ojamaIchi: 0,
+      maxRensasu: 0,
+      tsumoCount: 0,
+      current: null,
+      gameOver: false,
+    }));
+    aiStrat = [{ cooldownUntil: null }, { cooldownUntil: null }]; // ルーチンの記憶は1局ごとに消す
+    dealTsumo(0);
+    hideOverlay();
+    renderAll();
+    maybeTriggerAI();
+  }
+
+  function dealTsumo(player){
+    const st = players[player];
+    const pat = TSUMO_PATTERNS[match.order[st.tsumoCount % 16]];
+    st.tsumoCount++;
+    st.current = { axis: pat.axis, child: pat.child, col: 2, rot: UP };
+  }
+
+  function childColumn(col, rot){
+    if (rot === LEFT) return col - 1;
+    if (rot === RIGHT) return col + 1;
+    return col;
+  }
+
+  function columnHasSpace(board, col){
+    return board[col].some(v => v === 0);
+  }
+
+  function canDrop(board, col, rot){
+    const cc = childColumn(col, rot);
+    if (cc === col) return columnHasSpace(board, col);
+    return columnHasSpace(board, col) || columnHasSpace(board, cc);
+  }
+
+  function dropIntoColumn(board, col, color){
+    const idx = board[col].indexOf(0);
+    if (idx === -1) return -1;
+    board[col][idx] = color;
+    return idx;
+  }
+
+  // ==== 入力 ====
+  const KEYS = {
+    0: { left:'ArrowLeft', right:'ArrowRight', down:'ArrowDown', rl:'KeyZ', rr:'KeyX' },
+    1: { left:'KeyA', right:'KeyD', down:'KeyS', rl:'KeyQ', rr:'KeyE' },
+  };
+
+  // ひとり操作モード: 1P・2Pどちらの手番でも同じキー(1Pのキー割り当て)で操作する。
+  let soloControl = false;
+
+  window.addEventListener('keydown', (e) => {
+    if (match && match.replay){   // 再生中は ←→ で1手ずつ
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+      if (e.code === 'ArrowLeft'){ stopAutoPlay(); replayGo(match.replay.idx - 1); e.preventDefault(); }
+      else if (e.code === 'ArrowRight'){ stopAutoPlay(); replayStep(); e.preventDefault(); }
+      return;
+    }
+    if (!match || match.winner != null || match.animating) return;
+    const p = match.active;
+    const st = players[p];
+    if (!st || !st.current || aiEnabled[p]) return;
+    const k = soloControl ? KEYS[0] : KEYS[p];
+    if (e.code === k.rl){ rotate(p, -1); e.preventDefault(); }
+    else if (e.code === k.rr){ rotate(p, 1); e.preventDefault(); }
+    else if (e.code === k.left){ move(p, -1); e.preventDefault(); }
+    else if (e.code === k.right){ move(p, 1); e.preventDefault(); }
+    else if (e.code === k.down){ commitDrop(p); e.preventDefault(); }
+  });
+
+  function rotate(player, dir){
+    const cur = players[player].current;
+    // 向きの番号は UP→LEFT→DOWN→RIGHT(反時計回り)の順なので、右回り(dir>0)は番号を1つ戻す
+    let rot = (cur.rot + (dir > 0 ? 3 : 1)) % 4;
+    let col = cur.col;
+    if (rot === LEFT && col === 0) col = 1;
+    if (rot === RIGHT && col === WIDTH - 1) col = WIDTH - 2;
+    cur.rot = rot; cur.col = col;
+    renderBoard(player);
+  }
+
+  function move(player, dir){
+    const cur = players[player].current;
+    let col = cur.col;
+    if (dir < 0){
+      if (col <= 0) return;
+      if (cur.rot === LEFT && col === 1) return;
+      col--;
+    } else {
+      if (col >= WIDTH - 1) return;
+      if (cur.rot === RIGHT && col === WIDTH - 2) return;
+      col++;
+    }
+    cur.col = col;
+    renderBoard(player);
+  }
+
+  // 軸・子ぷよを実際に盤面へ置く処理そのもの(描画・コスト計算・連鎖解決は含まない)。
+  // 人間/AIの実プレイ(commitDrop)とAI探索用のシミュレーション(simulateMove)の両方から共有する。
+  function placePiece(board, col, rot, axisColor, childColor){
+    if (!canDrop(board, col, rot)) return { dropped: false };
+    const cc = childColumn(col, rot);
+    let axisRow, childRow;
+    if (rot === DOWN){
+      childRow = dropIntoColumn(board, col, childColor);
+      axisRow = dropIntoColumn(board, col, axisColor);
+    } else {
+      axisRow = dropIntoColumn(board, col, axisColor);
+      childRow = dropIntoColumn(board, cc, childColor);
+    }
+    const chigiri = (col !== cc && axisRow !== childRow);
+    return { dropped: true, axisRow, childRow, chigiri };
+  }
+
+  function commitDrop(player){
+    const st = players[player];
+    const cur = st.current;
+    const res = placePiece(st.board, cur.col, cur.rot, cur.axis, cur.child);
+    if (!res.dropped) return;
+    if (match.log) match.log.moves.push(cur.col * 4 + cur.rot);   // 対戦ログ: 1手 = 列×4+回転
+
+    if (res.chigiri){
+      st.cost -= CHIGIRI_TEZON;
+    }
+
+    st.current = null;
+    match.animating = true;
+    renderAll();
+    resolveChains(player);
+  }
+
+  // ==== 連鎖処理 ====
+  // 本家ぷよぷよと同じく、13段目(y = HEIGHT-1)のぷよは連結判定に加わらない。
+  // 12段目以下とも、13段目同士とも繋がらず、消えることもない(下が消えて落ちてきて初めて繋がる)。
+  const CONNECT_TOP = HEIGHT - 1; // この段より上は連結しない
+  function findClearGroups(board){
+    const visited = Array.from({length: WIDTH}, () => new Array(HEIGHT).fill(false));
+    const groups = [];
+    const ojamaToClear = new Set();
+    for (let x = 0; x < WIDTH; x++){
+      for (let y = 0; y < CONNECT_TOP; y++){
+        const c = board[x][y];
+        if (c === 0 || c === OJAMA_COLOR || visited[x][y]) continue;
+        const cells = [[x,y]];
+        const stack = [[x,y]];
+        const localOjama = [];
+        visited[x][y] = true;
+        while (stack.length){
+          const [cx, cy] = stack.pop();
+          const neighbors = [[cx,cy-1],[cx,cy+1],[cx-1,cy],[cx+1,cy]];
+          for (const [nx, ny] of neighbors){
+            if (nx < 0 || nx >= WIDTH || ny < 0 || ny >= CONNECT_TOP) continue;
+            const nv = board[nx][ny];
+            if (nv === OJAMA_COLOR){ localOjama.push([nx,ny]); continue; }
+            if (nv === c && !visited[nx][ny]){
+              visited[nx][ny] = true;
+              cells.push([nx,ny]);
+              stack.push([nx,ny]);
+            }
+          }
+        }
+        if (cells.length >= 4){
+          groups.push({ color: c, cells });
+          for (const [ox, oy] of localOjama) ojamaToClear.add(ox + ',' + oy);
+        }
+      }
+    }
+    return { groups, ojamaToClear };
+  }
+
+  function scoreStep(rensasu, groups){
+    let totalPuyo = 0, renketsu = 0;
+    const colors = new Set();
+    for (const g of groups){
+      totalPuyo += g.cells.length;
+      renketsu += RENKETSU_B[Math.min(g.cells.length, RENKETSU_B.length - 1)];
+      colors.add(g.color);
+    }
+    const irokazu = colors.size;
+    const bonus = RENSA_B[Math.min(rensasu, RENSA_B.length - 1)] + renketsu + IROKAZU_B[Math.min(irokazu, IROKAZU_B.length - 1)];
+    return bonus === 0 ? 10 * totalPuyo : 10 * totalPuyo * bonus;
+  }
+
+  function applyGravity(board){
+    for (let x = 0; x < WIDTH; x++){
+      const col = board[x];
+      const vals = col.filter(v => v !== 0);
+      for (let y = 0; y < HEIGHT; y++){
+        col[y] = y < vals.length ? vals[y] : 0;
+      }
+    }
+  }
+
+  function wait(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+  // ==== ここから、AI探索用の「描画・待機を一切行わない」純粋なシミュレーション関数群 ====
+  // findClearGroups/scoreStep/applyGravity/placePiece は実プレイ(アニメーションあり)と共有する。
+
+  function cloneBoard(board){
+    return board.map(col => col.slice());
+  }
+
+  // ある盤面に対して、今のツモで置ける(col, rot)の組み合わせを全列挙する。
+  function enumerateLegalMoves(board){
+    const moves = [];
+    for (let rot = 0; rot < 4; rot++){
+      const colMin = (rot === LEFT) ? 1 : 0;
+      const colMax = (rot === RIGHT) ? WIDTH - 2 : WIDTH - 1;
+      for (let col = colMin; col <= colMax; col++){
+        if (canDrop(board, col, rot)) moves.push({ col, rot });
+      }
+    }
+    return moves;
+  }
+
+  // 盤面を直接書き換えながら、連鎖が無くなるまで一気に解決する(描画・待機なし)。
+  function simulateResolveChains(board){
+    // 高速版(v0.1.1): 消える塊の検出・得点・落下を、使い捨ての配列を作らずに1か所で行う。
+    // 結果は従来版(findClearGroups + scoreStep + applyGravity)と完全に同じ。
+    // 作業用の配列は1度だけ作って使い回す(関数自身に持たせるので、Workerに文字列で渡しても動く)
+    const S = simulateResolveChains.s || (simulateResolveChains.s = {
+      mark: new Int32Array(WIDTH * HEIGHT), stack: new Int32Array(WIDTH * HEIGHT),
+      cells: new Int32Array(WIDTH * HEIGHT), oj: new Int32Array(WIDTH * HEIGHT), stamp: 0 });
+    const mark = S.mark, stack = S.stack, cells = S.cells, oj = S.oj;
+    let rensasu = 0, totalPoint = 0, stamp = 0;
+    while (true){
+      if (S.stamp > 1e9){ S.stamp = 0; mark.fill(0); }
+      stamp = ++S.stamp;
+      let nClear = 0, nOj = 0, totalPuyo = 0, renketsu = 0, colorMask = 0, groups = 0;
+      for (let x = 0; x < WIDTH; x++){
+        const colx = board[x];
+        for (let y = 0; y < CONNECT_TOP; y++){
+          const c = colx[y];
+          if (c === 0 || c === OJAMA_COLOR || mark[x * HEIGHT + y] === stamp) continue;
+          const start = nClear, ojStart = nOj;
+          let sp = 0;
+          stack[sp++] = x * HEIGHT + y; mark[x * HEIGHT + y] = stamp;
+          while (sp > 0){
+            const p = stack[--sp];
+            cells[nClear++] = p;
+            const cx = (p / HEIGHT) | 0, cy = p - cx * HEIGHT;
+            // 隣4マス(下・上・左・右の順)
+            if (cy > 0){ const q = p - 1, nv = board[cx][cy - 1];
+              if (nv === OJAMA_COLOR) oj[nOj++] = q; else if (nv === c && mark[q] !== stamp){ mark[q] = stamp; stack[sp++] = q; } }
+            if (cy + 1 < CONNECT_TOP){ const q = p + 1, nv = board[cx][cy + 1];
+              if (nv === OJAMA_COLOR) oj[nOj++] = q; else if (nv === c && mark[q] !== stamp){ mark[q] = stamp; stack[sp++] = q; } }
+            if (cx > 0){ const q = p - HEIGHT, nv = board[cx - 1][cy];
+              if (nv === OJAMA_COLOR) oj[nOj++] = q; else if (nv === c && mark[q] !== stamp){ mark[q] = stamp; stack[sp++] = q; } }
+            if (cx + 1 < WIDTH){ const q = p + HEIGHT, nv = board[cx + 1][cy];
+              if (nv === OJAMA_COLOR) oj[nOj++] = q; else if (nv === c && mark[q] !== stamp){ mark[q] = stamp; stack[sp++] = q; } }
+          }
+          const size = nClear - start;
+          if (size >= 4){
+            groups++; totalPuyo += size;
+            renketsu += RENKETSU_B[Math.min(size, RENKETSU_B.length - 1)];
+            colorMask |= (1 << c);
+          } else { nClear = start; nOj = ojStart; }
+        }
+      }
+      if (groups === 0) break;
+      rensasu++;
+      let irokazu = 0; for (let m = colorMask; m; m &= m - 1) irokazu++;
+      const bonus = RENSA_B[Math.min(rensasu, RENSA_B.length - 1)] + renketsu + IROKAZU_B[Math.min(irokazu, IROKAZU_B.length - 1)];
+      totalPoint += bonus === 0 ? 10 * totalPuyo : 10 * totalPuyo * bonus;
+      for (let i = 0; i < nClear; i++){ const p = cells[i]; const cx = (p / HEIGHT) | 0; board[cx][p - cx * HEIGHT] = 0; }
+      for (let i = 0; i < nOj; i++){ const p = oj[i]; const cx = (p / HEIGHT) | 0; board[cx][p - cx * HEIGHT] = 0; }
+      for (let x = 0; x < WIDTH; x++){
+        const col = board[x]; let w = 0;
+        for (let y = 0; y < HEIGHT; y++){ const v = col[y]; if (v !== 0){ if (w !== y) col[w] = v; w++; } }
+        for (let y = w; y < HEIGHT; y++) col[y] = 0;
+      }
+    }
+    return { rensasu, totalPoint };
+  }
+
+  // 1手分(配置+連鎖解決)を、渡された盤面に対してその場で適用する。呼び出し側が必要に応じて
+  // cloneBoard()した盤面を渡すこと(探索の分岐同士が同じ配列を共有しないようにするため)。
+  function simulateMove(board, col, rot, axisColor, childColor){
+    const placed = placePiece(board, col, rot, axisColor, childColor);
+    if (!placed.dropped) return { dropped: false };
+    const { rensasu, totalPoint } = simulateResolveChains(board);
+    return { dropped: true, chigiri: placed.chigiri, rensasu, totalPoint };
+  }
+
+  async function resolveChains(player){
+    const m0 = match;   // 演出の途中で新しい対戦や再生に切り替わったら、古い対戦の続きを止める
+    const st = players[player];
+    let rensasu = 0;
+    let totalPoint = 0;
+    let clearing = null;
+
+    while (true){
+      const { groups, ojamaToClear } = findClearGroups(st.board);
+      if (groups.length === 0) break;
+      rensasu++;
+      totalPoint += scoreStep(rensasu, groups);
+      if (rensasu > st.maxRensasu) st.maxRensasu = rensasu;
+
+      clearing = { groups, ojamaToClear };
+      renderBoard(player, clearing);
+      await wait(GAME_STEP_MS);
+      if (match !== m0) return;
+
+      for (const g of groups) for (const [x,y] of g.cells) st.board[x][y] = 0;
+      for (const key of ojamaToClear){
+        const [x,y] = key.split(',').map(Number);
+        st.board[x][y] = 0;
+      }
+      applyGravity(st.board);
+      renderBoard(player);
+      await wait(GAME_STEP_MS);
+      if (match !== m0) return;
+    }
+
+    finishTurn(player, rensasu, totalPoint);
+  }
+
+  // ==== ターン制(コスト)システム ====
+  function isGameOver(player){
+    return players[player].board[GAMEOVER_X][GAMEOVER_Y] !== 0;
+  }
+
+  function dropOjama(player, count){
+    const st = players[player];
+    const per = Math.floor(count / WIDTH);
+    const rem = count % WIDTH;
+    for (let g = 0; g < per; g++){
+      for (let h = 0; h < WIDTH; h++){
+        dropIntoColumn(st.board, h, OJAMA_COLOR);
+      }
+    }
+    let ichi = st.ojamaIchi;
+    for (let g = 0; g < rem; g++){
+      dropIntoColumn(st.board, OJAMA_ORDER[ichi], OJAMA_COLOR);
+      ichi = (ichi + 1) % WIDTH;
+    }
+    st.ojamaIchi = ichi;
+  }
+
+  // dropOjama()と同じ配分ロジックを、盤面を変更せずに「今落ちるとしたら列ごとに何個か」だけ計算する。
+  // 盤面上部の予告ドットの表示に使う(おじゃまの降る予告位置)。
+  function previewOjamaCounts(player){
+    const st = players[player];
+    const counts = new Array(WIDTH).fill(0);
+    const queued = Math.max(0, Math.floor(st.ojamaYokoku));
+    if (queued <= 0) return counts;
+    const dropped = Math.min(queued, MAX_OJAMA_DROP);
+    const per = Math.floor(dropped / WIDTH);
+    const rem = dropped % WIDTH;
+    for (let c = 0; c < WIDTH; c++) counts[c] += per;
+    let ichi = st.ojamaIchi;
+    for (let g = 0; g < rem; g++){
+      counts[OJAMA_ORDER[ichi]] += 1;
+      ichi = (ichi + 1) % WIDTH;
+    }
+    return counts;
+  }
+
+  function finishTurn(player, rensasu, rensaPoint){
+    const opp = 1 - player;
+    const st = players[player], ost = players[opp];
+
+    st.cost -= 1;
+    st.point += DROP_BONUS;
+    st.totalPoint += DROP_BONUS;
+
+    if (rensasu > 0){
+      st.point += rensaPoint;
+      st.totalPoint += rensaPoint;
+      const ojama = Math.floor(st.point / OJAMA_RATE);
+      st.point %= OJAMA_RATE;
+      st.ojamaYokoku -= ojama;
+      if (st.ojamaYokoku < 0){
+        ost.ojamaYokoku -= st.ojamaYokoku;
+        st.ojamaYokoku = 0;
+      }
+      st.cost -= rensasu * RENSA_TEZON;
+    }
+
+    renderAll();
+
+    if (isGameOver(player)){
+      endMatch(opp);
+      return;
+    }
+
+    if (st.cost <= 0){
+      ost.cost += 1;
+      if (st.cost < 0) ost.cost -= st.cost;
+      st.cost = 0;
+
+      if (st.ojamaYokoku > 0){
+        let dropped;
+        if (st.ojamaYokoku < MAX_OJAMA_DROP){
+          dropped = st.ojamaYokoku;
+          st.ojamaYokoku = 0;
+        } else {
+          dropped = MAX_OJAMA_DROP;
+          st.ojamaYokoku -= MAX_OJAMA_DROP;
+        }
+        dropOjama(player, dropped);
+        ost.cost += OJAMA_TEZON;
+      }
+
+      if (isGameOver(player)){
+        endMatch(opp);
+        return;
+      }
+
+      match.active = opp;
+      dealTsumo(opp);
+    } else {
+      dealTsumo(player);
+    }
+
+    match.animating = false;
+    renderAll();
+    maybeTriggerAI();
+  }
+
+  function endMatch(winner){
+    match.winner = winner;
+    match.animating = false;
+    players[0].current = null;
+    players[1].current = null;
+    showOverlay(winner);
+    renderAll();
+  }
+
+  // ==== 対戦ログ・再生 ====
+  // ログの形: PT1~<探索AIの版>~<開始日時 YYYYMMDDhhmm(端末の時刻)>~<本体>
+  //   本体 = ツモの並び(8文字) + 手(1手1文字) + 検査用(2文字)。文字は 64種(A-Z a-z 0-9 - _)。
+  //   ツモの並び: 16種類の組の並び順(16!通り)を1つの整数(レーマー符号)にして8文字で書く。
+  //   手: 列(0〜5)×4 + 子ぷよの向き(0上 1左 2下 3右) = 0〜23 を1文字。どちらが置いたかは手数のルールで決まるので書かない。
+  //   検査用: それより前の文字列全体から計算した値。打ち間違いやコピー漏れを見つける。
+  // 「PT1」の 1 はルールの版。ルールを変えたら上げる(古いログは別の対局になってしまうため)。
+  const LOG_MAGIC = 'PT1';
+  const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  function b64Num(n, len){ let out = ''; for (let i = 0; i < len; i++){ out = B64[n % 64] + out; n = Math.floor(n / 64); } return out; }
+  function numB64(str){ let n = 0; for (const ch of str){ const v = B64.indexOf(ch); if (v < 0) return NaN; n = n * 64 + v; } return n; }
+  function permToRank(perm){   // 0〜15の並び → 0〜16!-1
+    let rank = 0;
+    for (let i = 0; i < perm.length; i++){
+      let smaller = 0;
+      for (let j = i + 1; j < perm.length; j++) if (perm[j] < perm[i]) smaller++;
+      rank = rank * (perm.length - i) + smaller;
+    }
+    return rank;
+  }
+  function rankToPerm(rank, n){
+    const digits = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--){ const base = n - i; digits[i] = rank % base; rank = Math.floor(rank / base); }
+    const pool = [...Array(n).keys()], out = [];
+    for (let i = 0; i < n; i++) out.push(pool.splice(digits[i], 1)[0]);
+    return out;
+  }
+  function logChecksum(str){   // FNV-1a を 64×64 に畳む
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return b64Num(h % 4096, 2);
+  }
+  function pad2(n){ return String(n).padStart(2, '0'); }
+  function formatLogDate(d){ return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + pad2(d.getHours()) + pad2(d.getMinutes()); }
+  function encodeLog(order, moves, startedAt, version){
+    const body = b64Num(permToRank(order), 8) + moves.map(m => B64[m]).join('');
+    const head = LOG_MAGIC + '~' + version + '~' + formatLogDate(startedAt) + '~' + body;
+    return head + logChecksum(head);
+  }
+  // 戻り値: { order, moves, version, startedAt(文字列) } か { error }
+  function decodeLog(text){
+    const t = (text || '').replace(/\s+/g, '');
+    if (!t) return { error: 'ログが空です。' };
+    const parts = t.split('~');
+    if (parts.length !== 4) return { error: 'ログの形が違います(PT1~…~…~… の4つの部分が必要です)。' };
+    const [magic, version, date, bodyChk] = parts;
+    if (magic !== LOG_MAGIC) return { error: magic.startsWith('PT') ? 'このログは別のルールの版(' + magic + ')で記録されています。今のルール(' + LOG_MAGIC + ')では再生できません。' : 'ぷよぷよのログではありません。' };
+    // 版と日時は決まった文字だけ受ける(v0.10.81。表示に使うので、変な文字を通さない)。手は多すぎるログを断る(再生の計算が重くなるため)
+    if (!/^[0-9A-Za-z.\-]{1,20}$/.test(version) || !/^\d{12}$/.test(date)) return { error: 'ログの版か日時の部分が壊れています。' };
+    if (bodyChk.length > 8 + 2000 + 2) return { error: 'ログが長すぎます(2000手まで)。' };
+    if (bodyChk.length < 10) return { error: 'ログが途中で切れています。' };
+    const head = t.slice(0, t.length - 2), chk = t.slice(-2);
+    if (logChecksum(head) !== chk) return { error: 'ログの一部が欠けているか、書き換わっています(検査用の文字が合いません)。' };
+    const body = bodyChk.slice(0, -2);
+    const rank = numB64(body.slice(0, 8));
+    if (!Number.isFinite(rank) || rank >= 20922789888000) return { error: 'ツモの部分が壊れています。' };
+    const moves = [];
+    for (const ch of body.slice(8)){ const v = B64.indexOf(ch); if (v < 0 || v > 23) return { error: '手の部分に使えない文字があります。' }; moves.push(v); }
+    return { order: rankToPerm(rank, 16), moves, version, startedAt: date };
+  }
+  function currentLogText(){
+    if (!match) return '';
+    if (match.replay) return encodeLog(match.order, match.replay.moves, match.replay.startedAtDate, match.replay.version);
+    return encodeLog(match.order, match.log.moves, match.log.startedAt, AI_VERSION);
+  }
+
+  // ---- ログから各手の後の局面を作る(ゲームと同じルールを、演出なしで計算する) ----
+  function freshPlayers(){
+    return [0,1].map(p => ({ board: makeEmptyBoard(), cost: p === 0 ? ONE_P_BONUS : 0, point: 0, totalPoint: 0,
+      ojamaYokoku: 0, ojamaIchi: 0, maxRensasu: 0, tsumoCount: 0, current: null, gameOver: false }));
+  }
+  function snapPlayers(ps){
+    return ps.map(st => ({ board: cloneBoard(st.board), cost: st.cost, point: st.point, totalPoint: st.totalPoint,
+      ojamaYokoku: st.ojamaYokoku, ojamaIchi: st.ojamaIchi, maxRensasu: st.maxRensasu, tsumoCount: st.tsumoCount,
+      current: st.current ? Object.assign({}, st.current) : null, gameOver: false }));
+  }
+  // order のツモで moves を順に置いた局面の列。states[k] = k手置いた後。置けない手があればそこで止める。
+  function replayStates(order, moves){
+    const savedOrder = match ? match.order : null;
+    const ps = freshPlayers();
+    let active = 0, winner = null;
+    const deal = (p) => { const pat = TSUMO_PATTERNS[order[ps[p].tsumoCount % 16]]; ps[p].tsumoCount++; ps[p].current = { axis: pat.axis, child: pat.child, col: 2, rot: UP }; };
+    deal(0);
+    const states = [{ players: snapPlayers(ps), active, winner }];
+    let bad = -1;
+    for (let k = 0; k < moves.length; k++){
+      if (winner != null){ bad = k; break; }
+      const st = ps[active], op = ps[1 - active];
+      const col = Math.floor(moves[k] / 4), rot = moves[k] % 4;
+      const res = simulateMove(st.board, col, rot, st.current.axis, st.current.child);
+      if (!res.dropped){ bad = k; break; }
+      if (res.rensasu > st.maxRensasu) st.maxRensasu = res.rensasu;
+      st.current = null;
+      const out = applyEconomics(st, op, res);
+      if (out.gameOver){ winner = 1 - active; }
+      else {
+        if (out.turnSwitched) active = 1 - active;
+        deal(active);
+      }
+      states.push({ players: snapPlayers(ps), active, winner });
+    }
+    return { states, bad };
+  }
+
+  // ---- 再生 ----
+  let replayTimer = null;
+  function startReplay(dec){
+    const { states, bad } = replayStates(dec.order, dec.moves);
+    const moves = bad >= 0 ? dec.moves.slice(0, bad) : dec.moves;
+    const y = +dec.startedAt.slice(0, 4), mo = +dec.startedAt.slice(4, 6), d = +dec.startedAt.slice(6, 8), h = +dec.startedAt.slice(8, 10), mi = +dec.startedAt.slice(10, 12);
+    match = { seed: null, order: dec.order, active: 0, winner: null, animating: false, log: null,
+              replay: { moves, states, idx: 0, version: dec.version, startedAt: dec.startedAt,
+                        startedAtDate: new Date(y, mo - 1, d, h, mi), truncated: bad >= 0 } };
+    hideOverlay();
+    document.getElementById('replayBar').hidden = false;
+    const sl = document.getElementById('rpSlider'); sl.max = String(moves.length); sl.value = '0';
+    replayGo(0);
+    return bad;
+  }
+  function replayGo(k){
+    if (!match || !match.replay) return;
+    const R = match.replay;
+    R.animToken = (R.animToken || 0) + 1;   // 演出中なら止める
+    R.animating = false;
+    k = Math.max(0, Math.min(R.moves.length, k));
+    R.idx = k;
+    const s0 = R.states[k];
+    players = snapPlayers(s0.players);
+    match.active = s0.active;
+    match.winner = s0.winner;
+    // 次に置かれる手を、操作中の組ぷよの位置として見せる(着地点のドットも出る)
+    if (k < R.moves.length && players[s0.active].current){
+      players[s0.active].current.col = Math.floor(R.moves[k] / 4);
+      players[s0.active].current.rot = R.moves[k] % 4;
+    }
+    document.getElementById('rpSlider').value = String(k);
+    const who = s0.active === 0 ? '1P' : '2P';
+    const d = R.startedAt;
+    // 文字として入れる(v0.10.81)。ログの版・日時は貼った人が自由に書けるので、HTML として入れると命令を仕込まれる
+    document.getElementById('replayInfo').textContent =
+      '再生中 ' + k + ' / ' + R.moves.length + '手' +
+      (s0.winner != null ? ' — ' + (s0.winner === 0 ? '1P' : '2P') + 'の勝ち' : (k < R.moves.length ? ' — 次は' + who + 'の手' : '')) +
+      ' ・ 開始 ' + d.slice(0, 4) + '/' + d.slice(4, 6) + '/' + d.slice(6, 8) + ' ' + d.slice(8, 10) + ':' + d.slice(10, 12) +
+      ' ・ 探索AI v' + R.version + (R.truncated ? ' ・ (ルールに合わない手があったので、その手の前で止めています)' : '');
+    renderAll();
+  }
+  function stopAutoPlay(){
+    replayTimer = null;   // 演出中の手はそのまま最後まで見せる(止めるのは自動で次へ進むことだけ)
+    const b = document.getElementById('rpAuto'); if (b) b.textContent = '⏵ 自動';
+  }
+  // 再生の1手送りの演出: 試合と同じく「置く → 消えるぷよを光らせる → 消して落とす」を連鎖ごとに見せてから、次の局面を出す。
+  // 1段の待ち時間は速さの設定に合わせる(ふつう = 試合と同じ速さ)。
+  function replayStepMs(){ return Math.max(60, Math.round(+document.getElementById('rpSpeed').value * GAME_STEP_MS / 600)); }
+  async function replayStep(){
+    if (!match || !match.replay) return;
+    const R = match.replay;
+    if (R.animating) replayGo(R.idx + 1);   // 演出の途中で押されたら、その手を飛ばして次の手へ
+    const k = R.idx;
+    if (k >= R.moves.length){ replayGo(k); return; }
+    const s0 = R.states[k];
+    const p = s0.active, cur = s0.players[p].current;
+    if (!cur){ replayGo(k + 1); return; }
+    const m0 = match, token = R.animToken = (R.animToken || 0) + 1;
+    R.animating = true;
+    const alive = () => match === m0 && R.animToken === token;
+    players = snapPlayers(s0.players);
+    const st = players[p];
+    st.current = null;
+    placePiece(st.board, Math.floor(R.moves[k] / 4), R.moves[k] % 4, cur.axis, cur.child);
+    renderAll();
+    const ms = replayStepMs();
+    let rensasu = 0;
+    while (true){
+      const { groups, ojamaToClear } = findClearGroups(st.board);
+      if (groups.length === 0) break;
+      rensasu++;
+      if (rensasu > st.maxRensasu) st.maxRensasu = rensasu;
+      renderBoard(p, { groups, ojamaToClear });
+      await wait(ms);
+      if (!alive()) return;
+      for (const g of groups) for (const [x, y] of g.cells) st.board[x][y] = 0;
+      for (const key of ojamaToClear){ const [x, y] = key.split(',').map(Number); st.board[x][y] = 0; }
+      applyGravity(st.board);
+      renderBoard(p);
+      await wait(ms);
+      if (!alive()) return;
+    }
+    if (rensasu === 0){ await wait(Math.round(ms / 2)); if (!alive()) return; }
+    replayGo(k + 1);
+  }
+  function stopReplayUI(){
+    stopAutoPlay();
+    const bar = document.getElementById('replayBar'); if (bar) bar.hidden = true;
+  }
+  // 再生中の局面から対戦を始める。ログはここまでの手を引き継ぐ(1本の数列のまま、途中から分かれた対局になる)
+  function branchFromReplay(){
+    if (!match || !match.replay) return;
+    const R = match.replay, k = R.idx, s0 = R.states[k];
+    if (s0.winner != null) return;
+    stopReplayUI();
+    players = snapPlayers(s0.players);
+    const cur = players[s0.active].current;
+    if (cur){ cur.col = 2; cur.rot = UP; }
+    const order = match.order;
+    match = { seed: null, order, active: s0.active, winner: null, animating: false,
+              log: { startedAt: new Date(), moves: R.moves.slice(0, k) } };
+    aiStrat = [{ cooldownUntil: null }, { cooldownUntil: null }];
+    planner.plans = [null, null];
+    hideOverlay();
+    renderAll();
+    maybeTriggerAI();
+  }
+
+  // ==== AI ====
+  // 1P・2Pそれぞれ「AIが操作するか」のフラグ。newMatch()で盤面がリセットされても
+  // 引き継がれるよう、players配列とは別に持つ。
+  const aiEnabled = [false, false];
+  const AI_THINK_MS = 260; // 手を決めてから置くまでの「間」(AIvAIでも目で追えるように)
+  const AI_TIME_BUDGET_MS = 700; // 1手の探索(反復深化)にかけて良い実計算時間の目安
+  const AI_MAX_PLIES = 24; // 反復深化の安全な上限(時間切れで実質もっと浅く終わることがほとんど)
+
+  // 評価関数の重み。Node.js上でのAI同士の自己対戦でチューニング済み。
+  //   第1回: 山登り法(60世代)
+  //   第2回: 並列SPSA(82分・4812局、後半の平均値を採用)
+  // 学習に使っていないシードでの検証: 第1回の重みに対し160局で勝率68.1%、
+  // 元の手作り重みに対し120局で69.2%、1手120msの深い探索でも第1回に対し66.7%。
+  const AI_WEIGHTS = {
+    // 盤面の形(第2回の自己対戦で調整済み)
+    chainPot2: 2.643,         // 同色2個繋がりの「伸びしろ」ボーナス
+    chainPot3: 8.454,         // 同色3個繋がり(あと1個で発火)の「伸びしろ」ボーナス
+    heightPenalty: 0.827,     // 総積み上げ高さへの減点係数
+    bumpPenalty: 1.395,       // 列間の凸凹への減点係数
+    holePenalty: 6.061,       // 穴(埋まったセルの下の空きマス)への減点係数
+    dangerPenalty: 17.082,    // 危険列(GAMEOVER_X)が高いことへの減点係数(高さの2乗に掛かる)
+    chainPotentialWeight: 1.389, // estimateChainPotentialを盤面評価にどれだけ反映するか
+    leafOjamaMul: 2.173,      // 探索の葉でのおじゃま予告差への評価係数
+    // 発火の評価: 連鎖数ではなく「送れるおじゃま数」と「手数あたりの効率」で測る。
+    // 連鎖数で測るとマルチ連鎖(1連鎖2色消しなど)を過小評価してしまうため。
+    fireFullOjama: 20,        // この量のおじゃまを送れれば発火を満額評価する
+    fireOjamaMul: 40,         // 送れるおじゃま数そのものへの評価係数
+    fireEffMul: 60,           // 手数1あたりのおじゃま数(効率)への評価係数
+    fireUrgencyMul: 1.032,    // 危険度(urgency)を発火判断の重みにどれだけ効かせるか
+    fireMinWeight: 0.09,      // どんな状況でも連鎖発火に最低限与える評価の重み
+    // 本線・副砲・対応力(凝視)
+    honsenDiff: 2.0,          // 自分と相手の本線火力の差への評価係数
+    fukuhouDiff: 3.0,         // 自分と相手の副砲(手数効率)の差への評価係数
+    noAnswerPenalty: 15,      // 相手の副砲に撃ち返す手が無い状態への減点
+    unansweredBonus: 12,      // 自分の副砲に相手が撃ち返せない状態への加点
+    behindFukuhouMul: 3.0,    // 本線火力で負けているときに副砲の価値を上げる係数
+    fukuhouKeep: 0.8,         // 撃った後に本線がこの割合以上残っていれば副砲とみなす
+  };
+
+  // まだ4つ揃って消えてはいないが、同色が2〜3個繋がって「あと少しで発火できる」塊を数える。
+  // これを「連鎖の伸びしろ」として評価に加えることで、見えた瞬間に小さく消すのではなく、
+  // 育てて大きくする方を評価上も得にする(でないと探索は目先の得点しか見ない)。
+  function estimateChainPotential(board, W){
+    // 高速版(v0.1.1): 結果は従来と同じ(左の列・下の段から順に塊を見つけて足す順番も同じ)
+    const S = estimateChainPotential.s || (estimateChainPotential.s = {
+      seen: new Int32Array(WIDTH * HEIGHT), stack: new Int32Array(WIDTH * HEIGHT), stamp: 0 });
+    if (S.stamp > 1e9){ S.stamp = 0; S.seen.fill(0); }
+    const seen = S.seen, stack = S.stack, st = ++S.stamp;
+    let potential = 0;
+    for (let x = 0; x < WIDTH; x++){
+      for (let y = 0; y < CONNECT_TOP; y++){
+        const c = board[x][y];
+        if (c === 0 || c === OJAMA_COLOR || seen[x * HEIGHT + y] === st) continue;
+        let sp = 0, size = 0;
+        stack[sp++] = x * HEIGHT + y; seen[x * HEIGHT + y]  = st;
+        while (sp > 0){
+          const p = stack[--sp]; size++;
+          const cx = (p / HEIGHT) | 0, cy = p - cx * HEIGHT;
+          if (cy > 0 && seen[p - 1] !== st && board[cx][cy - 1] === c){ seen[p - 1]  = st; stack[sp++] = p - 1; }
+          if (cy + 1 < CONNECT_TOP && seen[p + 1] !== st && board[cx][cy + 1] === c){ seen[p + 1]  = st; stack[sp++] = p + 1; }
+          if (cx > 0 && seen[p - HEIGHT] !== st && board[cx - 1][cy] === c){ seen[p - HEIGHT]  = st; stack[sp++] = p - HEIGHT; }
+          if (cx + 1 < WIDTH && seen[p + HEIGHT] !== st && board[cx + 1][cy] === c){ seen[p + HEIGHT]  = st; stack[sp++] = p + HEIGHT; }
+        }
+        if (size === 2) potential += W.chainPot2;
+        else if (size === 3) potential += W.chainPot3;
+      }
+    }
+    return potential;
+  }
+
+  // ある局面の「盤面の形」の良さを評価する(高いほど良い)。
+  // 積み過ぎ・凸凹・穴(埋まったセルの下の空きマス)・危険列(GAMEOVER_X)の高さを減点し、
+  // 連鎖の伸びしろ(estimateChainPotential)を加点する。
+  function evaluateBoard(board, W){
+    W = W || AI_WEIGHTS;
+    const heights = new Array(WIDTH).fill(0);
+    let totalHeight = 0, holes = 0;
+    for (let x = 0; x < WIDTH; x++){
+      let h = 0, seenFilled = false, colHoles = 0;
+      for (let y = HEIGHT - 1; y >= 0; y--){
+        if (board[x][y] !== 0){ if (!seenFilled){ h = y + 1; seenFilled = true; } }
+        else if (seenFilled) colHoles++;
+      }
+      heights[x] = h; totalHeight += h; holes += colHoles;
+    }
+    let bumpiness = 0;
+    for (let x = 0; x < WIDTH - 1; x++) bumpiness += Math.abs(heights[x] - heights[x+1]);
+    const dangerHeight = heights[GAMEOVER_X];
+    const dangerPenalty = Math.max(0, dangerHeight - (GAMEOVER_Y - 2));
+    let score = 0;
+    score -= totalHeight * W.heightPenalty;
+    score -= bumpiness * W.bumpPenalty;
+    score -= holes * W.holePenalty;
+    score -= dangerPenalty * dangerPenalty * W.dangerPenalty;
+    score += estimateChainPotential(board, W) * W.chainPotentialWeight;
+    return score;
+  }
+
+  // 1手分の結果(連鎖・得点)と結果盤面をあわせて評価する。
+  // 火力は連鎖数ではなく「送れるおじゃま数」と「手数1あたりのおじゃま数(効率)」で測る。
+  // このゲームは連鎖1つにつきRENSA_TEZON(1.5)の手数を払うため、例えば1連鎖3色同時消しは
+  // 1.5手数で10個送れるのに対し、2連鎖単色は3手数で5個しか送れない。連鎖数で測ると
+  // 前者を過小評価してしまうので、効率で測ることでマルチ連鎖を正しく拾えるようにする。
+  function evaluateMoveResult(result, boardAfter, urgentYokoku, W){
+    W = W || AI_WEIGHTS;
+    let fireScore = 0;
+    if (result.rensasu > 0){
+      const ojama = result.totalPoint / OJAMA_RATE;   // 送れるおじゃま数
+      const tezon = result.rensasu * RENSA_TEZON;     // 発火で余分に払う手数
+      const eff = ojama / tezon;                      // 手数1あたりのおじゃま数
+      const urgency = Math.min(1, Math.max(0, urgentYokoku || 0) / 20);
+      const weight = Math.max(Math.min(1, ojama / W.fireFullOjama), urgency * W.fireUrgencyMul, W.fireMinWeight);
+      fireScore = (ojama * W.fireOjamaMul + eff * W.fireEffMul) * weight;
+    }
+    return fireScore + evaluateBoard(boardAfter, W);
+  }
+
+  // ==== 相互探索(ミニマックス)====
+  // 自分の盤面だけを見て評価する探索では、相手も同じ考え方をする限り「同じくらいの連鎖を
+  // 常に打ち合って相殺し続ける」均衡から抜け出せない。ここでは相手のツモ・盤面・コストも
+  // まるごと複製してシミュレートし、「自分の手番では自分に有利な手を選び、相手の手番では
+  // 相手が自分に不利な手(=自分に有利でない手)を選んでくる」ことを前提に探索する
+  // (ミニマックス: 自分の手番はmax、相手の手番はmin)。
+  // これにより、例えば「相手が発火して大きく手数を得た自分」が、その手数を使って相手より
+  // 大きい連鎖を用意する、といった駆け引きも評価に自然と反映されるようになる。
+
+  // 実プレイの players[] から、探索用に独立して書き換えられる複製を作る(盤面も含めてdeep copy)。
+  function cloneSimPlayer(st){
+    return {
+      board: cloneBoard(st.board),
+      cost: st.cost,
+      point: st.point,
+      totalPoint: st.totalPoint,
+      ojamaYokoku: st.ojamaYokoku,
+      ojamaIchi: st.ojamaIchi,
+      tsumoCount: st.tsumoCount,
+    };
+  }
+
+  // dealTsumo()と同じ規則で、複製プレイヤーに「次のツモ」を1つ配る(tsumoCountを進める)。
+  // 16手ループの並びはmatch.orderとして対戦開始時に確定済みなので、これは予測ではなく確定計算。
+  function simDealTsumo(sim){
+    const pat = TSUMO_PATTERNS[match.order[sim.tsumoCount % 16]];
+    sim.tsumoCount++;
+    return { axis: pat.axis, child: pat.child };
+  }
+
+  function isGameOverBoard(board){
+    return board[GAMEOVER_X][GAMEOVER_Y] !== 0;
+  }
+
+  // dropOjama()と同じ配分ロジックを、複製プレイヤーの盤面に対して行う。
+  function simDropOjama(sim, count){
+    const per = Math.floor(count / WIDTH);
+    const rem = count % WIDTH;
+    for (let g = 0; g < per; g++){
+      for (let h = 0; h < WIDTH; h++){
+        dropIntoColumn(sim.board, h, OJAMA_COLOR);
+      }
+    }
+    let ichi = sim.ojamaIchi;
+    for (let g = 0; g < rem; g++){
+      dropIntoColumn(sim.board, OJAMA_ORDER[ichi], OJAMA_COLOR);
+      ichi = (ichi + 1) % WIDTH;
+    }
+    sim.ojamaIchi = ichi;
+  }
+
+  // commitDrop()+finishTurn()のコスト/おじゃま予告/手番交代のロジックを、複製プレイヤー2人に
+  // 対してそのまま再現する(実プレイの計算式と完全に一致させることが重要)。
+  // mover: 今動かした側の複製。opponent: もう一方の複製。res: simulateMove()の結果。
+  // 戻り値: { gameOver, turnSwitched } — turnSwitchedがtrueならmoverのコストが尽きて手番が
+  // opponentに移ったことを示す(まだmoverの手番が続くなら次もmoverが動く)。
+  function applyEconomics(mover, opponent, res){
+    if (res.chigiri) mover.cost -= CHIGIRI_TEZON;
+    mover.cost -= 1;
+    mover.point += DROP_BONUS;
+    mover.totalPoint += DROP_BONUS;
+
+    if (res.rensasu > 0){
+      mover.point += res.totalPoint;
+      mover.totalPoint += res.totalPoint;
+      const ojama = Math.floor(mover.point / OJAMA_RATE);
+      mover.point %= OJAMA_RATE;
+      mover.ojamaYokoku -= ojama;
+      if (mover.ojamaYokoku < 0){
+        opponent.ojamaYokoku -= mover.ojamaYokoku;
+        mover.ojamaYokoku = 0;
+      }
+      mover.cost -= res.rensasu * RENSA_TEZON;
+    }
+
+    if (isGameOverBoard(mover.board)) return { gameOver: true, turnSwitched: false };
+
+    if (mover.cost <= 0){
+      opponent.cost += 1;
+      if (mover.cost < 0) opponent.cost -= mover.cost;
+      mover.cost = 0;
+
+      if (mover.ojamaYokoku > 0){
+        let dropped;
+        if (mover.ojamaYokoku < MAX_OJAMA_DROP){
+          dropped = mover.ojamaYokoku;
+          mover.ojamaYokoku = 0;
+        } else {
+          dropped = MAX_OJAMA_DROP;
+          mover.ojamaYokoku -= MAX_OJAMA_DROP;
+        }
+        simDropOjama(mover, dropped);
+        opponent.cost += OJAMA_TEZON;
+      }
+
+      if (isGameOverBoard(mover.board)) return { gameOver: true, turnSwitched: false };
+      return { gameOver: false, turnSwitched: true };
+    }
+
+    return { gameOver: false, turnSwitched: false };
+  }
+
+  // 探索木の葉(これ以上読まない局面)の評価値。常に「探索を開始した本人(root)視点」で返す。
+  // 盤面の形の差(evaluateBoard)に加えて、自分に来ているおじゃま予告は減点・相手に来ている
+  // おじゃま予告は加点することで、「相手に多くのおじゃまを積ませている状態」を素直に高評価にする。
+  // 直近の得点(totalPoint)は使わない — 探索開始前からの累積得点差を引きずると、今の局面の
+  // 良し悪しとは無関係なバイアスになってしまうため。
+  // ==== 連結成分のラベリング(各マスが属する塊のIDとサイズを一度に求める) ====
+  function labelGroups(board){
+    const N = WIDTH * HEIGHT;
+    const id = new Int32Array(N).fill(-1);
+    const stack = labelGroups.stack || (labelGroups.stack = new Int32Array(N));
+    const sizes = [];
+    for (let x = 0; x < WIDTH; x++){
+      for (let y = 0; y < CONNECT_TOP; y++){
+        const c = board[x][y];
+        if (c === 0 || c === OJAMA_COLOR || id[x * HEIGHT + y] !== -1) continue;
+        const gid = sizes.length;
+        let sp = 0, size = 0;
+        stack[sp++] = x * HEIGHT + y; id[x * HEIGHT + y] = gid;
+        while (sp > 0){
+          const p = stack[--sp]; size++;
+          const cx = (p / HEIGHT) | 0, cy = p - cx * HEIGHT;
+          if (cy > 0 && id[p - 1] === -1 && board[cx][cy - 1] === c){ id[p - 1] = gid; stack[sp++] = p - 1; }
+          if (cy + 1 < CONNECT_TOP && id[p + 1] === -1 && board[cx][cy + 1] === c){ id[p + 1] = gid; stack[sp++] = p + 1; }
+          if (cx > 0 && id[p - HEIGHT] === -1 && board[cx - 1][cy] === c){ id[p - HEIGHT] = gid; stack[sp++] = p - HEIGHT; }
+          if (cx + 1 < WIDTH && id[p + HEIGHT] === -1 && board[cx + 1][cy] === c){ id[p + HEIGHT] = gid; stack[sp++] = p + HEIGHT; }
+        }
+        sizes.push(size);
+      }
+    }
+    return { id, sizes };
+  }
+
+  // ==== 発火点の列挙 ====
+  // 連鎖は「置いた色が既存の同色と繋がって4個以上になる」ときにしか起きないので、
+  // 各列の着地マスに接している色(=露出している色)だけが候補になる。隣接する同色の塊の
+  // 合計+1が4未満なら即座に除外できるため、6列×4色を総当たりするより大幅に軽い。
+  function findIgnitions(board){
+    const { id, sizes } = labelGroups(board);
+    const out = [];
+    const nc = [0,0,0], ng = [[-1,-1,-1],[-1,-1,-1],[-1,-1,-1]], nn = [0,0,0];
+    for (let x = 0; x < WIDTH; x++){
+      const y = board[x].indexOf(0);
+      if (y === -1 || y >= CONNECT_TOP) continue; // 列が満杯 or 13段目(繋がらない)
+      let k = 0;
+      for (let t = 0; t < 3; t++){
+        let nx = x, ny = y;
+        if (t === 0) ny = y - 1; else if (t === 1) nx = x - 1; else nx = x + 1;
+        if (nx < 0 || nx >= WIDTH || ny < 0 || ny >= CONNECT_TOP) continue;
+        const c = board[nx][ny];
+        if (c === 0 || c === OJAMA_COLOR) continue;
+        const g = id[nx * HEIGHT + ny];
+        if (g === -1) continue;
+        let j = 0; while (j < k && nc[j] !== c) j++;
+        if (j === k){ nc[k] = c; nn[k] = 0; k++; }
+        let dup = false; for (let u = 0; u < nn[j]; u++) if (ng[j][u] === g) dup = true;
+        if (!dup) ng[j][nn[j]++] = g;
+      }
+      for (let j = 0; j < k; j++){
+        let total = 1;
+        for (let u = 0; u < nn[j]; u++) total += sizes[ng[j][u]];
+        if (total >= 4) out.push({ col: x, row: y, color: nc[j] });
+      }
+    }
+    return out;
+  }
+
+  // 仮想の1個で撃てる最大火力(おじゃま数)だけを返す軽い版。副砲判定の内側で使う。
+  function maxChainOjama(board){
+    const igs = findIgnitions(board);
+    let best = 0;
+    for (const ig of igs){
+      const b2 = cloneBoard(board);
+      b2[ig.col][ig.row] = ig.color;
+      const { rensasu, totalPoint } = simulateResolveChains(b2);
+      if (rensasu > 0 && totalPoint > best) best = totalPoint;
+    }
+    return best / OJAMA_RATE;
+  }
+
+  const FUKUHOU_CANDIDATES = 3; // 副砲判定を行う候補数の上限(計算量対策)
+  let PROFILE_CACHE = new Map();
+  function resetProfileCache(){ PROFILE_CACHE = new Map(); }
+
+  // ==== 盤面のプロファイル: 本線・副砲・対応力 ====
+  // honsen:  仮想1個で撃てる最大火力(おじゃま数と、その発火に要する手数)
+  // fukuhou: 撃っても本線がほぼ残る発火点のうち、手数効率が最良のもの(本線を食い潰さない攻撃)
+  // answers: 全発火点の(火力,手数)。相手の攻撃に撃ち返せるかの判定に使う
+  function analyzeBoard(board, W){
+    W = W || AI_WEIGHTS;
+    const key = boardKey(board);
+    const hit = PROFILE_CACHE.get(key);
+    if (hit) return hit;
+
+    const igs = findIgnitions(board);
+    const fired = [];
+    for (const ig of igs){
+      const b2 = cloneBoard(board);
+      b2[ig.col][ig.row] = ig.color;
+      const { rensasu, totalPoint } = simulateResolveChains(b2);
+      if (rensasu === 0) continue;
+      const ojama = totalPoint / OJAMA_RATE;
+      const cost = rensasu * RENSA_TEZON;
+      fired.push({ rensasu, ojama, cost, eff: ojama / cost, after: b2 });
+    }
+
+    let honsen = { ojama: 0, cost: 0 };
+    let honsenRef = null;
+    for (const f of fired) if (f.ojama > honsen.ojama){ honsen = { ojama: f.ojama, cost: f.cost }; honsenRef = f; }
+
+    // 副砲: 本線を食い潰さずに撃てるもののうち、手数効率が最良のもの。
+    // 「撃った後にもう一度最大火力を測り、本線がW.fukuhouKeep以上残っているか」で判定する。
+    let fukuhou = { ojama: 0, cost: 0, eff: 0 };
+    if (honsen.ojama > 0 && fired.length > 1){
+      const cands = fired.filter(f => f !== honsenRef).sort((a,b) => b.eff - a.eff).slice(0, FUKUHOU_CANDIDATES);
+      for (const f of cands){
+        if (f.eff <= fukuhou.eff) continue;
+        const remain = maxChainOjama(f.after);
+        if (remain >= honsen.ojama * W.fukuhouKeep){
+          fukuhou = { ojama: f.ojama, cost: f.cost, eff: f.eff };
+        }
+      }
+    }
+
+    const prof = { honsen, fukuhou, answers: fired.map(f => ({ ojama: f.ojama, cost: f.cost })) };
+    if (PROFILE_CACHE.size < 150000) PROFILE_CACHE.set(key, prof);
+    return prof;
+  }
+
+  // 攻撃量x以上を、残り手数budget以内で撃ち返せる発火点があるか
+  function canAnswer(prof, x, budget){
+    if (x <= 0) return true;
+    for (const a of prof.answers) if (a.ojama >= x && a.cost <= budget) return true;
+    return false;
+  }
+
+  function leafValue(rootSim, oppSim, W){
+    W = W || AI_WEIGHTS;
+    let v = evaluateBoard(rootSim.board, W) - evaluateBoard(oppSim.board, W);
+    v -= Math.max(0, rootSim.ojamaYokoku) * W.leafOjamaMul;
+    v += Math.max(0, oppSim.ojamaYokoku) * W.leafOjamaMul;
+
+    const r = analyzeBoard(rootSim.board, W);
+    const o = analyzeBoard(oppSim.board, W);
+
+    // 本線火力の差
+    // [実験] honsenOppMul を指定すると、相手の本線だけ別の重みで見る(自分の本線は honsenDiff のまま)
+    v += r.honsen.ojama * W.honsenDiff - o.honsen.ojama * (W.honsenOppMul || W.honsenDiff);
+    // 副砲(手数効率)の差
+    v += (r.fukuhou.eff - o.fukuhou.eff) * W.fukuhouDiff;
+
+    // 手番でない側もターンが回れば最低1手数は得るので、対応力の判定はそれを見込む
+    const rBudget = Math.max(rootSim.cost, 1), oBudget = Math.max(oppSim.cost, 1);
+    // 相手の副砲に自分が対応できない = 危険
+    if (o.fukuhou.ojama > 0 && !canAnswer(r, o.fukuhou.ojama, rBudget)) v -= W.noAnswerPenalty;
+    // 自分の副砲に相手が対応できない = 撃てば通るので価値が高い
+    if (r.fukuhou.ojama > 0 && !canAnswer(o, r.fukuhou.ojama, oBudget)) v += W.unansweredBonus;
+    // 本線火力で負けているときは、副砲で攻めるしかないのでその価値を上げる
+    if (r.honsen.ojama < o.honsen.ojama) v += r.fukuhou.eff * W.behindFukuhouMul;
+
+    // [実験] 撃ち返せない予告。予告おじゃまのうち、今の手数のうちに撃てる連鎖で相殺しきれない分を重く見る。
+    if (W.pendResidMul){
+      const resid = (sim, prof, budget) => {
+        const y = Math.max(0, sim.ojamaYokoku); if (y <= 0) return 0;
+        let best = 0; for (const a of prof.answers) if (a.cost <= budget && a.ojama > best) best = a.ojama;
+        return Math.max(0, y - best);
+      };
+      v -= resid(rootSim, r, rBudget) * W.pendResidMul;
+      v += resid(oppSim, o, oBudget) * W.pendResidMul;
+    }
+
+    // [実験] 予告おじゃまが降った後の危険列の高さ。降るのは手番の終わり(1度に最大30個=最大5段)。
+    // 今の高さだけでなく「降った後の高さ」で窒息の危なさを測る。
+    if (W.projDangerMul){
+      const dz = (sim) => {
+        const col = sim.board[GAMEOVER_X];
+        let h = 0; for (let y = HEIGHT - 1; y >= 0; y--) if (col[y] !== 0){ h = y + 1; break; }
+        const y0 = Math.min(Math.max(0, sim.ojamaYokoku), MAX_OJAMA_DROP);
+        const d0 = Math.max(0, h - (GAMEOVER_Y - 2)), d1 = Math.max(0, h + y0 / WIDTH - (GAMEOVER_Y - 2));
+        return (d1 * d1 - d0 * d0) * W.dangerPenalty;
+      };
+      v -= dz(rootSim) * W.projDangerMul;
+      v += dz(oppSim) * W.projDangerMul;
+    }
+
+    // [実験] 手数(コスト)の差。手数が多い側は、相手の番が来る前に多く置ける(組み立て・反撃の時間がある)
+    if (W.tempoMul) v += (rootSim.cost - oppSim.cost) * W.tempoMul;
+
+    return v;
+  }
+
+  const AI_LOSE_VALUE = -90000, AI_WIN_VALUE = 90000;
+
+  // 盤面2枚+経済状態+手番を1つの文字列キーにする(置換表用)。costやojamaYokokuは
+  // 0.5刻みの値しか取らないため小数第1位まででまるめて比較すれば十分(浮動小数の誤差対策)。
+  function boardKey(board){
+    let s = '';
+    for (let x = 0; x < WIDTH; x++) for (let y = 0; y < HEIGHT; y++) s += board[x][y];
+    return s;
+  }
+  function stateKey(state){
+    const r = state.root, o = state.opp;
+    return boardKey(r.board) + '|' + boardKey(o.board) + '|' +
+      r.cost.toFixed(1) + ',' + r.ojamaYokoku.toFixed(1) + ',' + r.tsumoCount + '|' +
+      o.cost.toFixed(1) + ',' + o.ojamaYokoku.toFixed(1) + ',' + o.tsumoCount + '|' +
+      state.toMove;
+  }
+
+  // アルファベータ本体。state = { root, opp, toMove, piece, pliesLeft }
+  //   root/opp: cloneSimPlayerで作った複製(常にroot=探索開始者、opp=相手で固定)
+  //   toMove: 今どちらの手番か('root' か 'opp')。root側の手番はmax、opp側の手番はminとして扱う。
+  //   piece: 今の手番の側が今まさに置こうとしているツモ
+  //   pliesLeft: あと何手分(root・oppどちらの手も1手として数える)読むか
+  // 各局面で全合法手(最大22通り)を1手読みの粗い評価(evaluateMoveResult)で並べ替え、有望な手から
+  // 順に読む。TT(置換表)にその局面の最善手が残っていればそれを最優先で試す(枝刈りが効きやすくなる)。
+  // alpha >= beta になった時点で残りの候補は読まずに打ち切る(アルファベータ枝刈り)。
+  // tt: 今回の1手決定(searchBestMove呼び出し1回)の間だけ使う使い捨ての置換表。深さを変えて
+  // 何度も探索し直す反復深化の中で、浅い探索の結果を深い探索の手の並べ替えに再利用する。
+  // deadline: performance.now()がこれを超えたら計算を打ち切り、その反復深化の結果は捨てる。
+  function alphaBeta(state, alpha, beta, tt, deadline){
+    if (performance.now() > deadline) return { value: 0, move: null, timedOut: true };
+
+    const key = stateKey(state);
+    const origAlpha = alpha, origBeta = beta;
+    const ttEntry = tt.get(key);
+    let ttMove = null;
+    if (ttEntry){
+      ttMove = ttEntry.move;
+      if (ttEntry.depth >= state.pliesLeft){
+        if (ttEntry.flag === 'EXACT') return { value: ttEntry.value, move: ttEntry.move };
+        if (ttEntry.flag === 'LOWER') alpha = Math.max(alpha, ttEntry.value);
+        else if (ttEntry.flag === 'UPPER') beta = Math.min(beta, ttEntry.value);
+        if (alpha >= beta) return { value: ttEntry.value, move: ttEntry.move };
+      }
+    }
+
+    const moverIsRoot = (state.toMove === 'root');
+    const moverSim = moverIsRoot ? state.root : state.opp;
+    const otherSim = moverIsRoot ? state.opp : state.root;
+
+    const moves = enumerateLegalMoves(moverSim.board);
+    const candidates = [];
+    for (const mv of moves){
+      const b2 = cloneBoard(moverSim.board);
+      const res = simulateMove(b2, mv.col, mv.rot, state.piece.axis, state.piece.child);
+      if (!res.dropped) continue;
+      const isTTMove = ttMove && ttMove.col === mv.col && ttMove.rot === mv.rot;
+      const quick = evaluateMoveResult(res, b2, moverSim.ojamaYokoku);
+      candidates.push({ mv, b2, res, quick: isTTMove ? Infinity : quick });
+    }
+    if (candidates.length === 0){
+      // 置ける場所が無い(=事実上その時点で窒息に等しい)。moverの負けとして扱う。
+      return { value: moverIsRoot ? AI_LOSE_VALUE : AI_WIN_VALUE, move: null };
+    }
+    candidates.sort((a, b) => b.quick - a.quick);
+
+    const isLeafPly = state.pliesLeft <= 1;
+    let bestValue = moverIsRoot ? -Infinity : Infinity;
+    let bestMove = candidates[0].mv;
+    let timedOut = false;
+
+    for (const cand of candidates){
+      const moverCopy = {
+        board: cand.b2,
+        cost: moverSim.cost,
+        point: moverSim.point,
+        totalPoint: moverSim.totalPoint,
+        ojamaYokoku: moverSim.ojamaYokoku,
+        ojamaIchi: moverSim.ojamaIchi,
+        tsumoCount: moverSim.tsumoCount,
+      };
+      const otherCopy = cloneSimPlayer(otherSim);
+      const outcome = applyEconomics(moverCopy, otherCopy, cand.res);
+
+      let value;
+      if (outcome.gameOver){
+        value = moverIsRoot ? AI_LOSE_VALUE : AI_WIN_VALUE;
+      } else if (isLeafPly){
+        const rSim = moverIsRoot ? moverCopy : otherCopy;
+        const oSim = moverIsRoot ? otherCopy : moverCopy;
+        value = leafValue(rSim, oSim);
+      } else {
+        let nextToMove, nextMoverSim;
+        if (outcome.turnSwitched){
+          nextToMove = moverIsRoot ? 'opp' : 'root';
+          nextMoverSim = otherCopy;
+        } else {
+          nextToMove = state.toMove;
+          nextMoverSim = moverCopy;
+        }
+        const nextPiece = simDealTsumo(nextMoverSim);
+        const child = alphaBeta({
+          root: moverIsRoot ? moverCopy : otherCopy,
+          opp: moverIsRoot ? otherCopy : moverCopy,
+          toMove: nextToMove,
+          piece: nextPiece,
+          pliesLeft: state.pliesLeft - 1,
+        }, alpha, beta, tt, deadline);
+        if (child.timedOut){ timedOut = true; break; }
+        value = child.value;
+      }
+
+      if (moverIsRoot){
+        if (value > bestValue){ bestValue = value; bestMove = cand.mv; }
+        alpha = Math.max(alpha, bestValue);
+      } else {
+        if (value < bestValue){ bestValue = value; bestMove = cand.mv; }
+        beta = Math.min(beta, bestValue);
+      }
+      if (alpha >= beta) break; // 枝刈り: これ以上残りの候補を読んでも結果は変わらない
+    }
+
+    if (timedOut) return { value: bestValue, move: bestMove, timedOut: true };
+
+    let flag;
+    if (bestValue <= origAlpha) flag = 'UPPER';
+    else if (bestValue >= origBeta) flag = 'LOWER';
+    else flag = 'EXACT';
+    tt.set(key, { depth: state.pliesLeft, value: bestValue, move: bestMove, flag });
+
+    return { value: bestValue, move: bestMove };
+  }
+
+  // 現在の盤面+ツモから、相互探索で最善の1手を選んで返す。
+  // 反復深化: 浅い深さから順に探索し、時間予算(AI_TIME_BUDGET_MS)を使い切るまで1手ずつ深くしていく。
+  // 各深さの結果は置換表(tt)に蓄積され、次の(より深い)反復での手の並べ替えに再利用されるため、
+  // 単純に毎回深さを固定して全探索するより効率よく深く読める。時間切れで打ち切られた反復の結果は
+  // 使わず、直前に完了した反復の最善手を採用する(常に「完全に読み切った」手を返す安全設計)。
+  function searchBestMove(player){
+    const st = players[player];
+    if (!st.current) return null;
+    const rootSim = cloneSimPlayer(st);
+    const oppSim = cloneSimPlayer(players[1 - player]);
+    const tt = new Map();
+    resetProfileCache(); // 本線・副砲の解析結果は1手の決定ごとに作り直す
+    const deadline = performance.now() + AI_TIME_BUDGET_MS;
+
+    let bestMove = null;
+    for (let depth = 1; depth <= AI_MAX_PLIES; depth++){
+      const result = alphaBeta(
+        { root: rootSim, opp: oppSim, toMove: 'root', piece: st.current, pliesLeft: depth },
+        -Infinity, Infinity, tt, deadline
+      );
+      if (result.timedOut) break;
+      if (result.move) bestMove = result.move;
+      if (performance.now() > deadline) break;
+    }
+    return bestMove;
+  }
+
+  // ==== 大連鎖の組み立て計画(ビームサーチ) ====
+  // 対戦用のアルファベータ探索は数手先しか読めないため、大連鎖を設計する能力が無い。
+  // そこで「16手周期のツモが確定している」利点を活かし、発火せずに置き続けたときに
+  // 最終的に何連鎖組めるかだけを目的とした専用の探索を別に持つ。人間の定型(階段積み等)は
+  // 一切教えず、探索が自分で見つけた形をそのまま使う。
+  const AI_PLAN_HORIZON = 16;       // 一度に計画する手数(ツモ1周期分)
+  const AI_PLAN_WIDTH = 100;        // ビーム幅(Worker実行時)
+  const AI_PLAN_WIDTH_SYNC = 24;    // Workerが使えない環境での縮小版
+  // 発火するかどうかは対戦用のアルファベータ探索に委ね、撃たない手だけを組み立て計画が担当する。
+  // 「○連鎖まで撃たない」といったしきい値による制御も試したが、自己対戦40局での比較では
+  // 勝率が下がった(相手の状態でモードを切り替える方式は37.5%、しきい値14の方式とは50%)ため、
+  // 判断を一元化して探索に任せる形にしてある。
+  const aiBuilding = [false, false]; // 画面表示用。組み立て計画に沿って置いているか
+
+  // 仮想の1個で撃てる最大「連鎖数」
+  function maxChainRensasu(board){
+    let best = 0;
+    for (const ig of findIgnitions(board)){
+      const b2 = cloneBoard(board);
+      b2[ig.col][ig.row] = ig.color;
+      const { rensasu } = simulateResolveChains(b2);
+      if (rensasu > best) best = rensasu;
+    }
+    return best;
+  }
+
+  // 組み立て中の形の良さ。連鎖数は階段状にしか増えないので、同じ連鎖数の中での
+  // 優劣(繋がりが多い・穴が無い・凸凹が少ない)をこれで付ける。
+  function buildShapeScore(board){
+    let pairs = 0, holes = 0, bump = 0, maxH = 0;
+    const hs = new Array(WIDTH).fill(0);
+    for (let x = 0; x < WIDTH; x++){
+      let seen = false;
+      for (let y = HEIGHT - 1; y >= 0; y--){
+        if (board[x][y] !== 0){ if (!seen){ hs[x] = y + 1; seen = true; } }
+        else if (seen) holes++;
+      }
+      if (hs[x] > maxH) maxH = hs[x];
+    }
+    for (let x = 0; x < WIDTH; x++){
+      for (let y = 0; y < CONNECT_TOP; y++){ // 13段目は繋がらないので数えない
+        const c = board[x][y];
+        if (!c || c === OJAMA_COLOR) continue;
+        if (x + 1 < WIDTH && board[x+1][y] === c) pairs++;
+        if (y + 1 < CONNECT_TOP && board[x][y+1] === c) pairs++;
+      }
+    }
+    for (let x = 0; x < WIDTH - 1; x++) bump += Math.abs(hs[x] - hs[x+1]);
+    return pairs * 4 - holes * 25 - bump * 2 - Math.max(0, maxH - 12) * 40;
+  }
+
+  // 現在の盤面から horizon 手ぶんの置き方をビームサーチで計画し、手順の配列を返す。
+  // 組み立て中は発火させず、窒息マスも埋めない。序盤は形を、終盤ほど連鎖数を重視する。
+  // chigiriPen: ちぎり1回あたりの減点(0.5手損)。0なら従来と同じ
+  function planBuild(board, order, tsumoIndex, horizon, width, chigiriPen){
+    const pen = chigiriPen || 0;
+    let beam = [{ board, moves: [], chig: 0 }];
+    for (let i = 0; i < horizon; i++){
+      const pat = TSUMO_PATTERNS[order[(tsumoIndex + i) % 16]];
+      const cand = [], seen = new Set();
+      for (const st of beam){
+        for (const mv of enumerateLegalMoves(st.board)){
+          const b2 = cloneBoard(st.board);
+          const res = simulateMove(b2, mv.col, mv.rot, pat.axis, pat.child);
+          if (!res.dropped || res.rensasu > 0) continue;        // 組み立て中は発火させない
+          if (b2[GAMEOVER_X][GAMEOVER_Y] !== 0) continue;        // 窒息マスは埋めない
+          const k = boardKey(b2);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          const chain = maxChainRensasu(b2);
+          const chig = st.chig + (res.chigiri ? 1 : 0);
+          cand.push({ board: b2, moves: st.moves.concat([mv]), chain, chig,
+                      s: chain * (60 + 10 * (tsumoIndex + i)) + buildShapeScore(b2) - pen * chig });
+        }
+      }
+      if (!cand.length) break;
+      cand.sort((a, b) => b.s - a.s);
+      // 同じ連鎖数の形ばかりで埋まらないよう、連鎖数ごとの採用数に上限を設ける(多様性の確保)
+      const perChain = new Map(), picked = [];
+      const cap = Math.max(3, Math.ceil(width / 3));
+      for (const st of cand){
+        const n = perChain.get(st.chain) || 0;
+        if (n >= cap) continue;
+        perChain.set(st.chain, n + 1);
+        picked.push(st);
+        if (picked.length >= width) break;
+      }
+      beam = picked;
+    }
+    return beam[0] ? beam[0].moves : [];
+  }
+
+  // ==== BUILDER CORE BEGIN (tools/port_builder.py が builder.js から生成) ====
+  function heightsOf(board){
+    const hs = [];
+    for (let x = 0; x < WIDTH; x++){ let h = 0; for (let y = HEIGHT - 1; y >= 0; y--) if (board[x][y] !== 0){ h = y + 1; break; } hs.push(h); }
+    return hs;
+  }
+  function groupSizeAt(board, x, y){
+    // 高速版: 作業用配列を使い回す(結果は従来と同じ)
+    const c = board[x][y]; if (!c || c === OJAMA_COLOR) return 0;
+    const S = groupSizeAt.s || (groupSizeAt.s = { seen: new Int32Array(WIDTH * HEIGHT), stack: new Int32Array(WIDTH * HEIGHT), stamp: 0 });
+    if (S.stamp > 1e9){ S.stamp = 0; S.seen.fill(0); }
+    const seen = S.seen, stack = S.stack, st = ++S.stamp;
+    let sp = 0, n = 0; stack[sp++] = x * HEIGHT + y; seen[x * HEIGHT + y] = st;
+    while (sp > 0){
+      const p = stack[--sp]; n++;
+      const cx = (p / HEIGHT) | 0, cy = p - cx * HEIGHT;
+      if (cy > 0 && seen[p - 1] !== st && board[cx][cy - 1] === c){ seen[p - 1] = st; stack[sp++] = p - 1; }
+      if (cy + 1 < CONNECT_TOP && seen[p + 1] !== st && board[cx][cy + 1] === c){ seen[p + 1] = st; stack[sp++] = p + 1; }
+      if (cx > 0 && seen[p - HEIGHT] !== st && board[cx - 1][cy] === c){ seen[p - HEIGHT] = st; stack[sp++] = p - HEIGHT; }
+      if (cx + 1 < WIDTH && seen[p + HEIGHT] !== st && board[cx + 1][cy] === c){ seen[p + HEIGHT] = st; stack[sp++] = p + HEIGHT; }
+    }
+    return n;
+  }
+  function labelSizes(board){
+    const seen = Array.from({ length: WIDTH }, () => new Array(HEIGHT).fill(false)); const sizes = [];
+    for (let x = 0; x < WIDTH; x++) for (let y = 0; y < CONNECT_TOP; y++){
+      const c = board[x][y]; if (!c || c === OJAMA_COLOR || seen[x][y]) continue;
+      let n = 0; const st = [[x, y]]; seen[x][y] = true;
+      while (st.length){ const [cx, cy] = st.pop(); n++;
+        for (const [nx, ny] of [[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]]){
+          if (nx < 0 || nx >= WIDTH || ny < 0 || ny >= CONNECT_TOP || seen[nx][ny] || board[nx][ny] !== c) continue; seen[nx][ny] = true; st.push([nx, ny]); } }
+      sizes.push(n); }
+    return { sizes };
+  }
+  function links23(board){
+    // 大きさ2の塊の数・大きさ3の塊の数(高速版: 塊の大きさを数えるだけで配列を作らない)
+    const S = links23.s || (links23.s = { seen: new Int32Array(WIDTH * HEIGHT), stack: new Int32Array(WIDTH * HEIGHT), stamp: 0 });
+    if (S.stamp > 1e9){ S.stamp = 0; S.seen.fill(0); }
+    const seen = S.seen, stack = S.stack, st = ++S.stamp;
+    let l2 = 0, l3 = 0;
+    for (let x = 0; x < WIDTH; x++) for (let y = 0; y < CONNECT_TOP; y++){
+      const c = board[x][y]; if (!c || c === OJAMA_COLOR || seen[x * HEIGHT + y] === st) continue;
+      let sp = 0, n = 0; stack[sp++] = x * HEIGHT + y; seen[x * HEIGHT + y] = st;
+      while (sp > 0){
+        const p = stack[--sp]; n++;
+        const cx = (p / HEIGHT) | 0, cy = p - cx * HEIGHT;
+        if (cy > 0 && seen[p - 1] !== st && board[cx][cy - 1] === c){ seen[p - 1] = st; stack[sp++] = p - 1; }
+        if (cy + 1 < CONNECT_TOP && seen[p + 1] !== st && board[cx][cy + 1] === c){ seen[p + 1] = st; stack[sp++] = p + 1; }
+        if (cx > 0 && seen[p - HEIGHT] !== st && board[cx - 1][cy] === c){ seen[p - HEIGHT] = st; stack[sp++] = p - HEIGHT; }
+        if (cx + 1 < WIDTH && seen[p + HEIGHT] !== st && board[cx + 1][cy] === c){ seen[p + HEIGHT] = st; stack[sp++] = p + HEIGHT; }
+      }
+      if (n === 2) l2++; else if (n === 3) l3++;
+    }
+    return [l2, l3];
+  }
+  function chiOf(hs, x){
+    let chi = 0;
+    for (let i = x + 1; i < WIDTH; i++){ if (hs[i] > hs[x]) break; chi++; }
+    for (let i = x + 1; i < WIDTH; i++){ if (hs[i] >= hs[x]) break; chi++; }
+    for (let i = x - 1; i >= 0; i--){ if (hs[i] > hs[x]) break; chi++; }
+    for (let i = x - 1; i >= 0; i--){ if (hs[i] >= hs[x]) break; chi++; }
+    return chi;
+  }
+  function amaScore(board, opts){
+    const AMA_BUILD = { chain: 1000, y: 289, key: -200, chi: 200, link2: 150, link3: 250, shape: -100, well: -100, bump: -100,
+                        ideal: [1, 1, 1, -1, -1, -1] };
+    const w = Object.assign({}, AMA_BUILD, opts.ama || {});
+    const hs = heightsOf(board);
+    let q = -Infinity, qChain = 0, qx = -1, qc = 0;
+    const fk = w.fuku ? [] : null;   // [実験] 副砲の候補(小さな連鎖)
+    for (let x = 0; x < WIDTH; x++){
+      const h0 = hs[x]; const dmax = Math.min(3, CONNECT_TOP - h0);
+      if (x === GAMEOVER_X && h0 >= GAMEOVER_Y) continue;
+      for (let c = 1; c <= 4 && dmax > 0; c++){
+        // 高速版: 盤面に直接積んで塊の大きさを調べ、発火するときだけ複製して連鎖を計算する(調べ終わったら元に戻す)
+        const col = board[x];
+        let placed = 0;
+        for (let i = 0; i < dmax; i++){
+          col[h0 + i] = c; placed++;
+          if (groupSizeAt(board, x, h0 + i) >= 4){
+            const b2 = cloneBoard(board);
+            for (let t = 0; t < placed; t++) col[h0 + t] = 0;
+            placed = 0;
+            const r = simulateResolveChains(b2);
+            if (r.rensasu >= 1){
+              const [l2, l3] = links23(b2);
+              const qs = r.rensasu * w.chain + h0 * w.y + (i + 1) * w.key + chiOf(hs, x) * w.chi + l2 * w.link2 + l3 * w.link3;
+              if (qs > q){ q = qs; qChain = r.rensasu; qx = x; qc = c; }
+              if (fk && r.rensasu <= (w.fukuMaxChain || 3)){
+                const oj = r.totalPoint / OJAMA_RATE;
+                if (oj >= (w.fukuMin || 4)) fk.push({ x, c, oj });
+              }
+            }
+            break;
+          }
+        }
+        for (let t = 0; t < placed; t++) col[h0 + t] = 0;
+      }
+    }
+    let s = q > -Infinity ? q : 0;
+    // [実験 fuku] 本線を崩さずに撃てる副砲があれば加点: 副砲を撃った盤面で、本線の発火(同じ列・同じ色)を
+    // もう一度試し、連鎖数がほとんど減らない(fukuLoss以内)ものを副砲とみなす
+    if (fk && fk.length && qx >= 0){
+      fk.sort((a, b) => b.oj - a.oj);
+      let tried = 0;
+      for (const f of fk){
+        if (f.x === qx && f.c === qc) continue;
+        if (++tried > (w.fukuTry || 2)) break;
+        const bF = cloneBoard(board);
+        const hf = hs[f.x];
+        for (let i = 0; i < 3 && hf + i < CONNECT_TOP; i++){ bF[f.x][hf + i] = f.c; if (groupSizeAt(bF, f.x, hf + i) >= 4) break; }
+        simulateResolveChains(bF);
+        let h = 0; for (let y = HEIGHT - 1; y >= 0; y--) if (bF[qx][y] !== 0){ h = y + 1; break; }
+        let rk = 0;
+        for (let i = 0; i < 3 && h + i < CONNECT_TOP; i++){
+          bF[qx][h + i] = qc;
+          if (groupSizeAt(bF, qx, h + i) >= 4){ rk = simulateResolveChains(bF).rensasu; break; }
+        }
+        if (rk >= qChain - (w.fukuLoss != null ? w.fukuLoss : 1)){ s += w.fuku * Math.min(f.oj, w.fukuCap || 30); break; }
+      }
+    }
+    // 形: 理想(左3列が平均+1、右3列が平均-1)からのずれ。ほぼ平らで、やや左が高い形
+    const avg = Math.floor(hs.reduce((a, b) => a + b, 0) / WIDTH);
+    let shape = 0; for (let x = 0; x < WIDTH; x++) shape += Math.abs(hs[x] - avg - w.ideal[x]);
+    let well = 0;
+    if (hs[0] < hs[1]) well += hs[1] - hs[0];
+    if (hs[5] < hs[4]) well += hs[4] - hs[5];
+    for (let i = 1; i < 5; i++) if (hs[i] < hs[i-1] && hs[i] < hs[i+1]) well += Math.min(hs[i-1], hs[i+1]) - hs[i];
+    let bump = 0; for (let i = 1; i < 5; i++) if (hs[i] > hs[i-1] && hs[i] > hs[i+1]) bump += hs[i] - Math.max(hs[i-1], hs[i+1]);
+    const [l2, l3] = links23(board);
+    s += shape * w.shape + well * w.well + bump * w.bump + l2 * w.link2 + l3 * w.link3;
+    // [実験] おじゃまの数(ama の nuisance)。消せば減るので、おじゃまを巻き込んで消す形を好む
+    if (w.nuisance){ let n = 0; for (let x = 0; x < WIDTH; x++) for (let y = 0; y < HEIGHT; y++) if (board[x][y] === OJAMA_COLOR) n++; s += n * w.nuisance; }
+    return { s, ig: { chain: qChain } };
+  }
+  function planMaxFire(board, order, startIdx, opts){
+    const horizon = opts.horizon || 40, width = opts.width || 100, pen = opts.chigiriPen || 0;
+    const fireAt = (b, pat) => {
+      let best = null;
+      for (const mv of enumerateLegalMoves(b)){
+        const b2 = cloneBoard(b);
+        const r = simulateMove(b2, mv.col, mv.rot, pat.axis, pat.child);
+        if (!r.dropped || r.rensasu === 0) continue;
+        const key = opts.fireKey === 'chain' ? r.rensasu * 1e6 + r.totalPoint : r.totalPoint;
+        if (!best || key > best.key) best = { key, mv, rensa: r.rensasu, oj: r.totalPoint / OJAMA_RATE };
+      }
+      return best;
+    };
+    let beam = [{ board, moves: [], chig: 0 }];
+    let bestFire = null;
+    const altMap = opts.alts ? new Map() : null;
+    let altSet = null;
+    for (let i = 0; i < horizon; i++){
+      const pat = TSUMO_PATTERNS[order[(startIdx + i) % 16]];
+      // この段のツモで撃った場合
+      for (const st of beam){
+        const f = fireAt(st.board, pat);
+        if (f && (!bestFire || f.key > bestFire.key)) bestFire = Object.assign({}, f, { moves: st.moves.concat([f.mv]), at: i + 1 });
+        // [opts.alts] 最初の1手ごとに、その手から始まる手順での最大火力を覚える(相手と違う手を選ぶため)
+        if (f && altMap){
+          const m0 = st.moves.length ? st.moves[0] : f.mv, k = m0.col * 4 + m0.rot, o = altMap.get(k);
+          if (!o || f.key > o.key) altMap.set(k, { key: f.key, oj: f.oj, first: k, moves: st.moves.concat([f.mv]) });
+        }
+      }
+      const cand = [], seen = new Set();
+      for (const st of beam){
+        for (const mv of enumerateLegalMoves(st.board)){
+          const b2 = cloneBoard(st.board);
+          const r = simulateMove(b2, mv.col, mv.rot, pat.axis, pat.child);
+          if (!r.dropped || r.rensasu > 0) continue;
+          if (b2[GAMEOVER_X][GAMEOVER_Y] !== 0) continue;
+          const k = boardKey(b2); if (seen.has(k)) continue; seen.add(k);
+          const chig = st.chig + (r.chigiri ? 1 : 0);
+          const sc = amaScore(b2, opts);
+          cand.push({ board: b2, moves: st.moves.concat([mv]), chig, s: sc.s - pen * chig, ig: sc.ig });
+        }
+      }
+      if (!cand.length) break;
+      cand.sort((a, b) => b.s - a.s);
+      const perChain = new Map(), picked = [];
+      // [opts.alts] 初手の上位 altK 通りは、それぞれ altQ 個まで必ず残す(初手ごとの最大火力を公平に比べるため)
+      if (altMap){
+        if (i === 0){ altSet = new Set(); for (const st of cand){ if (altSet.size >= (opts.altK || 4)) break; altSet.add(st.moves[0].col * 4 + st.moves[0].rot); } }
+        const cnt = new Map();
+        for (const st of cand){
+          const k = st.moves[0].col * 4 + st.moves[0].rot;
+          if (!altSet.has(k)) continue;
+          const n = cnt.get(k) || 0; if (n >= (opts.altQ || 15)) continue;
+          cnt.set(k, n + 1); st.res = true; picked.push(st);
+        }
+      }
+      const cap = Math.max(3, Math.ceil(width / (opts.capDiv || 3)));
+      for (const st of cand){
+        if (st.res) continue;
+        const n = perChain.get(st.ig.chain) || 0;
+        if (n >= cap) continue;
+        perChain.set(st.ig.chain, n + 1);
+        picked.push(st);
+        if (picked.length >= width + (altMap ? (opts.altK || 4) * (opts.altQ || 15) : 0)) break;
+      }
+      beam = picked;
+    }
+    if (bestFire && altMap) bestFire.alts = [...altMap.values()].sort((a, b) => b.key - a.key);
+    return bestFire;
+  }
+  function pickDiverge(f, tol, r){
+    if (!f || !f.alts) return null;
+    const bk = f.moves[0].col * 4 + f.moves[0].rot;
+    const c = f.alts.filter(a => a.first !== bk && a.oj >= f.oj * (1 - tol) && a.moves.length > 1);
+    if (!c.length) return null;
+    return c[Math.min(c.length - 1, Math.floor(r * c.length))];
+  }
+  // ==== BUILDER CORE END ====
+
+  // 本線の計画: builder='ama' なら ama方式で「いちばん大きく撃てる時点まで」を一気に計画し、最後の撃つ手を除いて返す
+  // (strategy.js の本線ルーチンと同じ手順)。作れなければ従来の組み立て計画。
+  function planHonsen(board, order, tsumoIndex, horizon, width, chigiriPen, builder, amaWidth, amaHorizon, div){
+    if (builder === 'ama'){
+      const f = planMaxFire(board, order, tsumoIndex, { scoreMode: 'ama', width: amaWidth || 50, horizon: amaHorizon || 40, chigiriPen: 250, alts: div ? true : undefined });
+      // 相手と違う手: 最初の1手が違い、火力が最善の (1 - tol) 以上ある手順があれば、それを使う
+      if (div){ const alt = pickDiverge(f, div.tol, div.r); if (alt) return alt.moves.slice(0, -1); }
+      const mv = f ? f.moves.slice(0, -1) : [];
+      if (mv.length) return mv;
+    }
+    return planBuild(cloneBoard(board), order, tsumoIndex, horizon, width, chigiriPen);
+  }
+
+  // 計画の計算は重い(数秒)ので、Web Workerに逃がして画面を止めないようにする。
+  // 単一ファイルのまま動かすため、必要な関数をtoString()で文字列化してWorkerを組み立てる
+  // (コードを二重に持たずに済み、本体と計画側のロジックが食い違う心配が無い)。
+  const planner = { worker: null, failed: false, reqId: 0, waiting: null, plans: [null, null] };
+
+  function buildPlannerSource(){
+    const consts = `const WIDTH=${WIDTH},HEIGHT=${HEIGHT},OJAMA_COLOR=${OJAMA_COLOR},CONNECT_TOP=${CONNECT_TOP},` +
+      `GAMEOVER_X=${GAMEOVER_X},GAMEOVER_Y=${GAMEOVER_Y},UP=${UP},LEFT=${LEFT},DOWN=${DOWN},RIGHT=${RIGHT};\n` +
+      `const RENSA_B=${JSON.stringify(RENSA_B)},RENKETSU_B=${JSON.stringify(RENKETSU_B)},IROKAZU_B=${JSON.stringify(IROKAZU_B)};\n` +
+      `const TSUMO_PATTERNS=${JSON.stringify(TSUMO_PATTERNS)};\n`;
+    const fns = [childColumn, columnHasSpace, canDrop, dropIntoColumn, placePiece,
+      findClearGroups, scoreStep, applyGravity, cloneBoard, enumerateLegalMoves,
+      simulateResolveChains, simulateMove, labelGroups, findIgnitions, boardKey,
+      maxChainRensasu, buildShapeScore, planBuild,
+      heightsOf, groupSizeAt, labelSizes, links23, chiOf, amaScore, planMaxFire, pickDiverge, planHonsen].map(f => f.toString()).join('\n');
+    return consts + `const OJAMA_RATE=${OJAMA_RATE};\n` + fns + `\nonmessage = (e) => {
+      const d = e.data;
+      postMessage({ id: d.id, moves: planHonsen(d.board, d.order, d.tsumoIndex, d.horizon, d.width, d.chigiriPen, d.builder, d.amaWidth, d.amaHorizon, d.div) });
+    };`;
+  }
+
+  function ensurePlanner(){
+    if (planner.worker || planner.failed) return;
+    try {
+      const url = URL.createObjectURL(new Blob([buildPlannerSource()], { type: 'application/javascript' }));
+      planner.worker = new Worker(url);
+      planner.worker.onmessage = (e) => {
+        const w = planner.waiting;
+        if (!w || e.data.id !== w.id) return;
+        planner.waiting = null;
+        w.done(e.data.moves || []);
+      };
+      planner.worker.onerror = () => { planner.failed = true; planner.worker = null; };
+    } catch (err){
+      planner.failed = true; // Workerが使えない環境では同期計算に切り替える
+    }
+  }
+
+  // 計画を要求する。Workerがあれば裏で計算し、無ければ幅を縮めてその場で計算する。
+  function requestPlan(player, done, div){
+    const st = players[player];
+    const startIndex = (st.tsumoCount - 1 + 16) % 16; // 今手に持っているツモから始める
+    ensurePlanner();
+    if (planner.worker && !planner.failed){
+      const id = ++planner.reqId;
+      planner.waiting = { id, done };
+      planner.worker.postMessage({ id, board: st.board, order: match.order,
+        tsumoIndex: startIndex, horizon: AI_PLAN_HORIZON, width: AI_PLAN_WIDTH, chigiriPen: AI_STRATEGY.chigiriPen || 0,
+        builder: AI_STRATEGY.honsenBuilder, amaWidth: AI_STRATEGY.amaWidth, amaHorizon: AI_STRATEGY.amaHorizon, div: div || null });
+    } else {
+      const moves = planHonsen(st.board, match.order, startIndex, AI_PLAN_HORIZON, AI_PLAN_WIDTH_SYNC, AI_STRATEGY.chigiriPen || 0,
+        AI_STRATEGY.honsenBuilder, AI_STRATEGY.amaWidth, AI_STRATEGY.amaHorizon, div || null);
+      done(moves);
+    }
+  }
+
+  function setPlan(player, moves){
+    const st = players[player];
+    planner.plans[player] = moves.length ? { moves, idx: 0, expectedKey: boardKey(st.board) } : null;
+  }
+
+  // 計画どおりに置ける手が残っていれば返す。盤面が計画と食い違っていたら(おじゃまが降った等)
+  // 計画を破棄して null を返し、呼び出し側で立て直させる。
+  function nextPlanMove(player){
+    const plan = planner.plans[player];
+    if (!plan) return null;
+    const st = players[player];
+    if (plan.idx >= plan.moves.length || boardKey(st.board) !== plan.expectedKey){
+      planner.plans[player] = null;
+      return null;
+    }
+    const mv = plan.moves[plan.idx];
+    if (!canDrop(st.board, mv.col, mv.rot)){ planner.plans[player] = null; return null; }
+    return mv;
+  }
+
+  function advancePlan(player, mv){
+    const plan = planner.plans[player];
+    if (!plan) return;
+    const st = players[player];
+    const b2 = cloneBoard(st.board);
+    placePiece(b2, mv.col, mv.rot, st.current.axis, st.current.child);
+    plan.expectedKey = boardKey(b2);
+    plan.idx++;
+  }
+
+  // ==== STRATEGY CORE BEGIN (tools/port_strategy.py が strategy.js から生成) ====
+  function smallFire(board, piece, keepChain){
+    let best = null;
+    for (const mv of enumerateLegalMoves(board)){
+      const b2 = cloneBoard(board);
+      const r = simulateMove(b2, mv.col, mv.rot, piece.axis, piece.child);
+      if (!r.dropped || r.rensasu === 0 || r.rensasu > 2) continue;
+      if (b2[GAMEOVER_X][GAMEOVER_Y] !== 0) continue;
+      const ojama = r.totalPoint / OJAMA_RATE;
+      if (best && ojama <= best.ojama) continue;
+      if (keepChain > 0 && maxChainRensasu(b2) < keepChain) continue;
+      best = { ojama, rensasu: r.rensasu, mv };
+    }
+    return best;
+  }
+  function pieceAt(order, idx){ return TSUMO_PATTERNS[order[idx % 16]]; }
+  function planDoubleCore(board, order, startIndex, opts){
+    const H = opts.dblHorizon || 8, width = opts.dblWidth || 30;
+    const A = opts.dblOjamaMul || 40;       // 撃てる火力1個あたりの点
+    const decay = opts.dblDecay || 20;      // 1手遅れるごとの減点(早く撃てる形ほど良い)
+    const minOj = opts.dblMinOjama || 3;    // これ未満の火力はダブルと認めない
+    const baseChain = maxChainRensasu(board);
+    const keep = Math.max(0, baseChain - (opts.dblKeepSlack != null ? opts.dblKeepSlack : 1));
+    // 置く前(今の手)で撃てるなら、それが計画
+    const now = smallFire(board, pieceAt(order, startIndex), keep);
+    let bestPlan = (now && now.ojama >= minOj) ? { score: now.ojama * A, moves: [now.mv] } : null;
+    const pen = opts.chigiriPen || 0;      // ちぎり1回あたりの減点(0.5手損)
+    let beam = [{ board: board, moves: [], chig: 0 }];
+    for (let i = 0; i < H; i++){
+      const pat = pieceAt(order, startIndex + i), nextPat = pieceAt(order, startIndex + i + 1);
+      const cand = [], seen = new Set();
+      for (const st of beam){
+        for (const mv of enumerateLegalMoves(st.board)){
+          const b2 = cloneBoard(st.board);
+          const r = simulateMove(b2, mv.col, mv.rot, pat.axis, pat.child);
+          if (!r.dropped || r.rensasu > 0) continue;
+          if (b2[GAMEOVER_X][GAMEOVER_Y] !== 0) continue;
+          const k = boardKey(b2); if (seen.has(k)) continue; seen.add(k);
+          const chain = maxChainRensasu(b2);
+          const fire = smallFire(b2, nextPat, keep);
+          const fo = (fire && fire.ojama >= minOj) ? fire.ojama : 0;
+          const moves = st.moves.concat([mv]);
+          const chig = st.chig + (r.chigiri ? 1 : 0);
+          const s = fo * A + chain * 60 + buildShapeScore(b2) - pen * chig;
+          cand.push({ board: b2, moves, s, chig });
+          if (fo > 0){
+            const sc = fo * A - (i + 1) * decay - pen * chig;
+            if (!bestPlan || sc > bestPlan.score) bestPlan = { score: sc, moves: moves.concat([fire.mv]) };
+          }
+        }
+      }
+      if (!cand.length) break;
+      cand.sort((a, b) => b.s - a.s);
+      beam = cand.slice(0, width);
+    }
+    return bestPlan ? bestPlan.moves : [];
+  }
+  function simCopy(s){ return { board: cloneBoard(s.board), cost: s.cost, point: s.point, totalPoint: s.totalPoint,
+                                ojamaYokoku: s.ojamaYokoku, ojamaIchi: s.ojamaIchi, tsumoCount: s.tsumoCount }; }
+  function planOjama(me, opp, order, W, opts){
+    const width = opts.ojWidth || 40, maxSteps = opts.ojMaxSteps || 12;
+    const first = pieceAt(order, me.tsumoCount - 1);
+    let beam = [{ me: simCopy(me), opp: simCopy(opp), moves: [], piece: first, maxR: 0 }];
+    let best = null, smallBest = null;
+    const smallOn = opts.ojSmall && me.ojamaYokoku < (opts.ojSmallMax || 20);
+    const terminals = [];
+    for (let step = 0; step < maxSteps && beam.length; step++){
+      const cand = [];
+      for (const st of beam){
+        for (const mv of enumerateLegalMoves(st.me.board)){
+          const m = simCopy(st.me), o = simCopy(st.opp);
+          const r = simulateMove(m.board, mv.col, mv.rot, st.piece.axis, st.piece.child);
+          if (!r.dropped) continue;
+          const out = applyEconomics(m, o, r);
+          const moves = st.moves.concat([mv]);
+          const maxR = Math.max(st.maxR || 0, r.rensasu);
+          if (out.gameOver){ continue; }
+          if (out.turnSwitched){
+            // 手番終了: おじゃまが降った後の局面で採点。予告が残れば決着(負け)
+            const v = (m.ojamaYokoku > 0 ? -60000 : 0) + leafValue(m, o, W);
+            if (opts.ojExchange) terminals.push({ v, moves, m, o, fired: st.fired || r.rensasu >= 3 });
+            if (!best || v > best.v) best = { v, moves };
+            if (smallOn && maxR <= (opts.ojSmallChain || 5) && (!smallBest || v > smallBest.v)) smallBest = { v, moves };
+            continue;
+          }
+          const piece = simDealTsumo(m);
+          cand.push({ me: m, opp: o, moves, piece, s: leafValue(m, o, W), fired: st.fired || r.rensasu >= 3, maxR });
+        }
+      }
+      cand.sort((a, b) => b.s - a.s);
+      beam = cand.slice(0, width);
+    }
+    // [実験] セカンドの組み立て: 手数が多く残っている手番では、構築AI(ama方式)で「この手番で置ける手数を使い切って
+    // いちばん大きく撃つ」手順を作り、同じ物差し(手番の終わりの局面の評価)で比べて良ければそれを使う。
+    // 上のビームは手番の終わりまで最大12手しか読まず、評価も組み立て向きではないので、手数を残して早く撃ちがちになる。
+    if (opts.secondBuilder && me.cost >= (opts.secondMinCost || 3)){
+      const H = Math.min(opts.secondMaxH || 24, Math.ceil(me.cost));
+      const f = planMaxFire(me.board, order, (me.tsumoCount - 1 + 16) % 16,
+                              { scoreMode: 'ama', width: opts.secondWidth || 60, horizon: H, chigiriPen: 250 });
+      if (f && f.moves.length){
+        // 実際の手数の計算で最後までたどって、手番の終わり(または手順の終わり)の局面を採点する
+        let m = simCopy(me), o = simCopy(opp), ok = true, ended = false, piece = first;
+        for (let i = 0; i < f.moves.length; i++){
+          const mv = f.moves[i];
+          const r = simulateMove(m.board, mv.col, mv.rot, piece.axis, piece.child);
+          if (!r.dropped){ ok = false; break; }
+          const out = applyEconomics(m, o, r);
+          if (out.gameOver){ ok = false; break; }
+          if (out.turnSwitched){ ended = i === f.moves.length - 1; if (!ended) ok = false; break; }
+          piece = simDealTsumo(m);
+        }
+        if (ok){
+          const v = (ended && m.ojamaYokoku > 0 ? -60000 : 0) + leafValue(m, o, W);
+          if (!best || v > best.v){ best = { v, moves: f.moves }; }
+          if (opts.ojExchange) terminals.push({ v, moves: f.moves, m, o, fired: true });
+        }
+      }
+    }
+
+    // [実験] 撃ち合いの見積もり: 本線級(3連鎖以上)を撃って相手に送り返す手順は、相手がもらう手数で
+    // 育てて撃ち返してくる反撃(相手のツモで予測)を差し引いて採点し直す(上位いくつかだけ。計算が重いため)
+    if (opts.ojExchange && terminals.length){
+      terminals.sort((a, b) => b.v - a.v);
+      // 撃つ手順ばかりが上位を占めると比べる相手がいなくなるので、撃たない手順の上位も必ず候補に入れる
+      const N = opts.ojExTop || 6;
+      const pool = terminals.slice(0, N).concat(terminals.filter(t => !t.fired).slice(0, N));
+      let best2 = null;
+      for (const t of pool){
+        let v = t.v;
+        if (t.fired && t.o.ojamaYokoku > 0){
+          const T = Math.min(16, Math.max(1, Math.ceil(t.o.cost)));
+          const c = predictCounter(t.o.board, t.o.point, order, t.o.tsumoCount, T, opts.ctrWidth || 20);
+          const back = c.ojama - t.o.ojamaYokoku;
+          if (back > 0) v -= (opts.ojExchange === 'veto' ? 30000 : back * (W.leafOjamaMul + W.honsenDiff));
+        }
+        if (!best2 || v > best2.v) best2 = { v, moves: t.moves };
+      }
+      if (best2) return best2.moves;
+    }
+    // [実験 ojSmall] 小さな仕掛け(予告が ojSmallMax 未満)には、本線(ojSmallChain より大きい連鎖)で返さず、
+    // 小さな連鎖で返すか受ける手順を優先する(集計: 本線で返した側の勝率24%、小さく返した側62%)
+    if (smallBest && smallBest.v > -30000 && (!best || smallBest.v >= best.v - (opts.ojSmallMargin != null ? opts.ojSmallMargin : Infinity))){
+      return smallBest.moves;
+    }
+    return best ? best.moves : [];
+  }
+  function predictCounter(oppBoard, oppPoint, order, startIdx, T, width){
+    let best = 0, bestAt = -1;
+    let beam = [{ board: oppBoard }];
+    for (let i = 0; i < T && beam.length; i++){
+      const pat = pieceAt(order, startIdx + i);
+      const cand = [], seen = new Set();
+      for (const st of beam){
+        for (const mv of enumerateLegalMoves(st.board)){
+          const b2 = cloneBoard(st.board);
+          const r = simulateMove(b2, mv.col, mv.rot, pat.axis, pat.child);
+          if (!r.dropped) continue;
+          if (r.rensasu > 0){
+            const oj = Math.floor((oppPoint + 10 * (i + 1) + r.totalPoint) / OJAMA_RATE);
+            if (oj > best){ best = oj; bestAt = i; }
+            continue;
+          }
+          if (b2[GAMEOVER_X][GAMEOVER_Y] !== 0) continue;
+          const k = boardKey(b2); if (seen.has(k)) continue; seen.add(k);
+          cand.push({ board: b2, s: maxChainRensasu(b2) * 60 + buildShapeScore(b2) });
+        }
+      }
+      cand.sort((a, b) => b.s - a.s);
+      beam = cand.slice(0, width);
+    }
+    return { ojama: best, at: bestAt };
+  }
+  function fireExchange(me, opp, piece, mv, order, params){
+    const b2 = cloneBoard(me.board);
+    const r = simulateMove(b2, mv.col, mv.rot, piece.axis, piece.child);
+    if (!r.dropped || r.rensasu === 0) return null;
+    const m = { board: b2, cost: me.cost, point: me.point, totalPoint: me.totalPoint,
+                ojamaYokoku: me.ojamaYokoku, ojamaIchi: me.ojamaIchi, tsumoCount: me.tsumoCount };
+    const o = { board: cloneBoard(opp.board), cost: opp.cost, point: opp.point, totalPoint: opp.totalPoint,
+                ojamaYokoku: opp.ojamaYokoku, ojamaIchi: opp.ojamaIchi, tsumoCount: opp.tsumoCount };
+    const out = applyEconomics(m, o, r);
+    if (out.gameOver) return null;
+    const sent = o.ojamaYokoku;                 // 相手に向かう予告(相殺後)
+    // 相手が置ける回数: 手番が回ってきたときの手数(撃って手番が終わらない場合は今の手数)
+    const T = Math.min(params.ctrMaxMoves || 16, Math.max(1, Math.ceil(out.turnSwitched ? o.cost : opp.cost + 1)));
+    const c = predictCounter(o.board, o.point, order, o.tsumoCount, T, params.ctrWidth || 20);
+    return { rensasu: r.rensasu, sent, counter: c.ojama, T, turnSwitched: out.turnSwitched, myLeft: m.ojamaYokoku };
+  }
+  // ==== STRATEGY CORE END ====
+
+  // ==== いま何を組むか(ルーチン)の選択 ==== strategy.js の selectRoutine と同じ規則
+  // 規則の数字は AI_STRATEGY。dblAhead: 自分の本線がこの連鎖数以上で相手以上ならダブルを組みに行く
+  // 相手と違う手を選ぶ側(0=1P, 1=2P)と、許す火力の差(最善の何割下まで)・序盤の何手目までか
+  const AI_DIVERGE = { players: [1], tol: 0.1, maxT: 4 };
+  const AI_STRATEGY = { dblAhead: 5, ojamaRoutine: 1, chigiriPen: 20, vetoEarly: 1, honsenBuilder: 'ama', amaWidth: 150, secondBuilder: 1, ojSmall: 1 };
+  let aiStrat = [{ cooldownUntil: null }, { cooldownUntil: null }];
+  function selectRoutine(p){
+    const S = AI_STRATEGY;
+    if (S.dblBehind == null && S.dblAhead == null) return 'honsen';
+    const me = players[p], opp = players[1 - p];
+    if (me.ojamaYokoku > 0 || opp.ojamaYokoku > 0) return 'honsen';
+    const cd = aiStrat[p].cooldownUntil;
+    if (cd != null && me.tsumoCount < cd) return 'honsen';
+    const my = maxChainRensasu(me.board), op = maxChainRensasu(opp.board);
+    if (S.dblBehind != null && op - my >= S.dblBehind) return 'double';
+    if (S.dblAhead != null && my >= S.dblAhead && my >= op) return 'double';
+    return 'honsen';
+  }
+
+  // 対戦用探索が選んだ手が連鎖を発火するなら、その判断をそのまま採用する。
+  // 発火しない「静かな手」の時だけ、組み立て計画に置き換える。
+  function firesChain(player, mv){
+    const st = players[player];
+    const b2 = cloneBoard(st.board);
+    const res = simulateMove(b2, mv.col, mv.rot, st.current.axis, st.current.child);
+    return res.dropped && res.rensasu > 0;
+  }
+
+  // AIの手番になったら、少し間を置いてから最善手を1手だけ実行する(実プレイ用・描画/待機あり)。
+  // ==== ローカルAIサーバ(任意) ====
+  // お手元のPCで node server.js を動かし、http://localhost:8787 から開いたときだけ有効になる。
+  // AIの手だけをPC側で計算させる仕組みで、ページに埋め込めないような大きなネットとも対戦できる。
+  // claude.ai などサーバのない場所で開いた場合は下の fetch が失敗し、内蔵AIのまま動く。
+  const serverAI = { ok: false, kind: 'builtin', info: null, lastMs: 0 };
+
+  async function detectAIServer(){
+    try {
+      // 応答が無いまま待ち続けて対戦が始まらない、ということが無いよう必ず打ち切る
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 1500);
+      const res = await fetch('ai/info', { cache: 'no-store', signal: ac.signal })
+        .finally(() => clearTimeout(timer));
+      if (!res.ok) return;
+      const info = await res.json();
+      if (!info || !Array.isArray(info.modes) || !info.modes.length) return;
+      serverAI.ok = true;
+      serverAI.info = info;
+      const sel = document.getElementById('aiKind');
+      sel.innerHTML = '';
+      for (const m of [{ id: 'builtin', label: '内蔵AI(ブラウザ)' }].concat(info.modes)){
+        const o = document.createElement('option');
+        o.value = m.id; o.textContent = m.label;
+        sel.appendChild(o);
+      }
+      sel.value = info.modes.some(m => m.id === 'netsearch') ? 'netsearch' : info.modes[0].id;
+      serverAI.kind = sel.value;
+      sel.addEventListener('change', () => { serverAI.kind = sel.value; });
+      document.getElementById('serverBox').style.display = '';
+    } catch (e){
+      /* サーバが無ければ、ブラウザ内の最新AIを試す(無ければ内蔵AIで動く) */
+    }
+    if (!serverAI.ok) await setupWebAI();
+  }
+
+  // ==== ブラウザ内の最新AI(v0.10.88) ====
+  // AIサーバが無いとき(GitHub Pages など)に、ai/ai_worker.js(最新AI tri。C++ の読みは WebAssembly)を画面とは別に動かす。
+  // ai/ は web/build_web.js と GitHub Actions が作る。ml/index.html を直接開いたときなど、ai/ が無ければ内蔵AIのまま
+  const webAI = { worker: null, seq: 0, waits: new Map() };
+  async function setupWebAI(){
+    if (typeof Worker === 'undefined' || location.protocol === 'file:') return;
+    try {
+      const res = await fetch('ai/ai_worker.js', { method: 'HEAD', cache: 'no-store' });
+      if (!res.ok) return;
+      webAI.worker = new Worker('ai/ai_worker.js');
+    } catch (e){ return; }
+    webAI.worker.onmessage = (e) => {
+      const w = webAI.waits.get(e.data.id);
+      if (w){ webAI.waits.delete(e.data.id); w(e.data); }
+    };
+    // 読み込めなかったときは内蔵AIに戻す
+    webAI.worker.onerror = (e) => {
+      console.error(e);
+      serverAI.ok = false; serverAI.kind = 'builtin';
+      document.getElementById('serverBox').style.display = 'none';
+      for (const w of webAI.waits.values()) w({ error: 'ブラウザ内のAIを読み込めませんでした' });
+      webAI.waits.clear();
+    };
+    serverAI.ok = true; serverAI.kind = 'tri-web';
+    const sel = document.getElementById('aiKind');
+    sel.innerHTML = '<option value="tri-web">最新AI tri(ブラウザ内)</option>';
+    const box = document.getElementById('serverBox');
+    box.title = 'このブラウザの中で最新AIが考えます(サーバは要りません)';
+    box.style.display = '';
+  }
+
+  async function requestServerMove(p){
+    const st = players[p], ost = players[1 - p];
+    const body = {
+      kind: serverAI.kind, matchId: match.seed, player: p,
+      me: cloneSimPlayer(st), opp: cloneSimPlayer(ost),
+      piece: { axis: st.current.axis, child: st.current.child },
+      order: match.order,
+    };
+    if (serverAI.kind === 'tri-web'){
+      const id = ++webAI.seq;
+      const j = await new Promise((resolve) => { webAI.waits.set(id, resolve); webAI.worker.postMessage({ id, body }); });
+      if (j.error) throw new Error(j.error);
+      serverAI.lastMs = j.ms || 0;
+      return j.move;
+    }
+    const res = await fetch('ai/move', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const j = await res.json();
+    if (j.error) throw new Error(j.error);
+    serverAI.lastMs = j.ms || 0;
+    return j.move;
+  }
+
+  function maybeTriggerAI(){
+    if (!match || match.winner != null || match.animating || match.replay) return;
+    const p = match.active;
+    const st = players[p];
+    if (!st || !st.current || !aiEnabled[p]) return;
+    match.aiPending = true;
+    const m0 = match;
+    setTimeout(() => {
+      const stale = () => !match || match !== m0 || match.winner != null || match.animating || match.active !== p || !st.current;
+      if (stale()){ match.aiPending = false; return; }
+
+      const play = (mv) => {
+        if (stale() || !mv){ match.aiPending = false; return; }
+        match.aiPending = false;
+        st.current.col = mv.col;
+        st.current.rot = mv.rot;
+        renderBoard(p);
+        commitDrop(p);
+      };
+
+      // AIサーバが選ばれているときは、手の決定をまるごとPC側に任せる
+      if (serverAI.ok && serverAI.kind !== 'builtin'){
+        document.getElementById('turnText').textContent =
+          (p === 0 ? '1P' : '2P') + ' が考えています…';
+        requestServerMove(p).then(play).catch((err) => {
+          console.error(err);
+          match.aiPending = false;
+          if (!serverAI.ok) return maybeTriggerAI();   // ブラウザ内のAIを読み込めなかったときは、内蔵AIで続ける
+          document.getElementById('turnText').textContent = 'AIサーバとの通信に失敗しました';
+        });
+        return;
+      }
+
+      // 自分に予告があるときは、おじゃま対応ルーチンがこの手番の手をすべて決める(strategy.js と同じ手順)
+      if (AI_STRATEGY.ojamaRoutine && st.ojamaYokoku > 0){
+        if (planner.plans[p] && planner.plans[p].routine !== 'ojama') planner.plans[p] = null;
+        let m = nextPlanMove(p);
+        if (!m){
+          const moves = planOjama(st, players[1 - p], match.order, AI_WEIGHTS, AI_STRATEGY);
+          if (moves.length){ setPlan(p, moves); planner.plans[p].routine = 'ojama'; m = nextPlanMove(p); }
+        }
+        if (m){ aiBuilding[p] = false; advancePlan(p, m); play(m); return; }
+      }
+      const searchMv = searchBestMove(p);
+      if (!searchMv){ match.aiPending = false; return; }
+      // 発火する手なら対戦用探索の判断をそのまま使う
+      if (firesChain(p, searchMv)){
+        // 早撃ち防止: 本線級の発火で、相手がもらう手数のうちにそれ以上の反撃を返せるなら撃たずに組み続ける
+        let veto = false;
+        if (AI_STRATEGY.vetoEarly && st.ojamaYokoku === 0){
+          const x = fireExchange(st, players[1 - p], st.current, searchMv, match.order, AI_STRATEGY);
+          if (x && x.rensasu >= (AI_STRATEGY.vetoMinChain || 3) && x.counter >= x.sent * (AI_STRATEGY.vetoRatio || 1)) veto = true;
+        }
+        if (!veto){ aiBuilding[p] = false; planner.plans[p] = null; play(searchMv); return; }
+      }
+      // それ以外は「いま何を組むか」(ルーチン)を選び、その計画に従う(strategy.js と同じ手順)
+      const want = selectRoutine(p);
+      if (planner.plans[p] && (planner.plans[p].routine || 'honsen') !== want) planner.plans[p] = null;
+      const playPlanMove = (m) => {
+        const routine = planner.plans[p] ? (planner.plans[p].routine || 'honsen') : 'honsen';
+        const isDoubleFire = routine === 'double' && firesChain(p, m);
+        aiBuilding[p] = true; advancePlan(p, m);
+        if (isDoubleFire){
+          planner.plans[p] = null;
+          aiStrat[p].cooldownUntil = st.tsumoCount + (AI_STRATEGY.dblCooldown != null ? AI_STRATEGY.dblCooldown : 4);
+        }
+        play(m);
+      };
+      const planMv = nextPlanMove(p);
+      if (planMv){ playPlanMove(planMv); return; }
+      if (want === 'double'){
+        const moves = planDoubleCore(st.board, match.order, (st.tsumoCount - 1 + 16) % 16, AI_STRATEGY);
+        if (moves.length){
+          setPlan(p, moves); planner.plans[p].routine = 'double';
+          const m = nextPlanMove(p);
+          if (m){ playPlanMove(m); return; }
+        }
+      }
+      // 計画が無い/古くなったので立て直す(Worker側で計算するので画面は止まらない)
+      document.getElementById('turnText').textContent = (p === 0 ? '1P' : '2P') + ' が連鎖を設計中…';
+      // 相手と違う手: 2Pは序盤の最初の本線計画で1回だけ、ほぼ同じくらい良い別の初手を選ぶ(同じツモで1Pと同じ形になるのを避ける)。
+      // 選び方はツモの並びと手数から決まるので、ログの再生や Node 側の判定と同じ結果になる
+      let div = null;
+      if (want === 'honsen' && AI_DIVERGE.players.includes(p) && !aiStrat[p].divergeTried && st.tsumoCount <= AI_DIVERGE.maxT){
+        aiStrat[p].divergeTried = true;
+        let h = 2166136261; for (const v of match.order) h = Math.imul(h ^ v, 16777619); h = Math.imul(h ^ st.tsumoCount, 16777619);
+        div = { tol: AI_DIVERGE.tol, r: ((h >>> 0) % 1000003) / 1000003 };
+      }
+      requestPlan(p, (moves) => {
+        if (stale()){ match.aiPending = false; return; }
+        setPlan(p, moves);
+        const m = nextPlanMove(p);
+        if (m){ aiBuilding[p] = true; advancePlan(p, m); }
+        play(m || searchMv);
+      }, div);
+    }, AI_THINK_MS);
+  }
+
+  // ==== 描画 ====
+  const CELL = 34;
+  const VISIBLE_ROWS = HEIGHT; // 盤面として見える段数(0〜12の13段、13段目も表示する)
+  const SPAWN_ROWS = 2; // 壁の上、組ぷよを操作する13段目より上の余白(2段分)
+  const TOP_MARGIN_PX = SPAWN_ROWS * CELL; // 盤面はここから下、キャンバス最下端にぴったり合わせる
+  const boardCanvas = [document.getElementById('board0'), document.getElementById('board1')];
+  const boardCtx = boardCanvas.map(c => c.getContext('2d'));
+  const nextCanvas = [document.getElementById('next0'), document.getElementById('next1')];
+  const nextCtx = nextCanvas.map(c => c.getContext('2d'));
+  const ojamaCanvas = [document.getElementById('ojamaPrev0'), document.getElementById('ojamaPrev1')];
+  const ojamaCtx = ojamaCanvas.map(c => c.getContext('2d'));
+
+  function themeVar(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  // 色をグレー寄りに寄せる(引けないツモの表示に使う)。四角を被せるのではなく球の色自体を変える。
+  function dimHex(hex, t){
+    const n = parseInt(hex.slice(1), 16);
+    const mix = (v) => Math.round(v * (1 - t) + 132 * t);
+    const r = mix(n >> 16), g = mix((n >> 8) & 0xff), b = mix(n & 0xff);
+    return '#' + ((1<<24) + (r<<16) + (g<<8) + b).toString(16).slice(1);
+  }
+
+  // ぷよの輪郭(形で見分けるとき、v0.10.76)。どの形も半径 r の円にだいたい収まる大きさ
+  function puyoPath(ctx, cx, cy, r, shape){
+    ctx.beginPath();
+    if (shape === 'square'){
+      const s = r * 0.86, k = r * 0.28;
+      if (ctx.roundRect) ctx.roundRect(cx - s, cy - s, 2 * s, 2 * s, k); else ctx.rect(cx - s, cy - s, 2 * s, 2 * s);
+    } else if (shape === 'diamond'){
+      ctx.moveTo(cx, cy - r * 1.05); ctx.lineTo(cx + r * 1.05, cy); ctx.lineTo(cx, cy + r * 1.05); ctx.lineTo(cx - r * 1.05, cy); ctx.closePath();
+    } else if (shape === 'star'){
+      for (let i = 0; i < 10; i++){
+        const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 === 0 ? r * 1.08 : r * 0.5;
+        if (i === 0) ctx.moveTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a)); else ctx.lineTo(cx + rr * Math.cos(a), cy + rr * Math.sin(a));
+      }
+      ctx.closePath();
+    } else if (shape === 'triangleDown'){
+      ctx.moveTo(cx - r * 1.0, cy - r * 0.78); ctx.lineTo(cx + r * 1.0, cy - r * 0.78); ctx.lineTo(cx, cy + r * 0.98); ctx.closePath();
+    } else ctx.arc(cx, cy, r, 0, Math.PI*2);
+  }
+
+  function drawPuyo(ctx, cx, cy, r, color, dim){
+    let hex = PUYO_HEX[color];
+    if (!hex) return;
+    if (dim) hex = dimHex(hex, 0.72);
+    const grad = ctx.createRadialGradient(cx - r*0.35, cy - r*0.4, r*0.15, cx, cy, r);
+    grad.addColorStop(0, shade(hex, 28));
+    grad.addColorStop(1, hex);
+    puyoPath(ctx, cx, cy, r, shapeMode ? PUYO_SHAPE[color] : 'circle');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    if (shapeMode) return;   // 形で見分けるときは、つやと目は描かない(形が見やすいように)
+    ctx.beginPath();
+    ctx.ellipse(cx - r*0.32, cy - r*0.38, r*0.28, r*0.18, -0.6, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.fill();
+    if (color === 5){
+      ctx.strokeStyle = 'rgba(40,40,60,.35)';
+      ctx.lineWidth = Math.max(1, r*0.12);
+      ctx.beginPath();
+      ctx.moveTo(cx - r*0.32, cy + r*0.05);
+      ctx.lineTo(cx - r*0.08, cy + r*0.05);
+      ctx.moveTo(cx + r*0.08, cy + r*0.05);
+      ctx.lineTo(cx + r*0.32, cy + r*0.05);
+      ctx.stroke();
+    }
+  }
+
+  function drawDeathMark(ctx, cx, cy, r){
+    ctx.strokeStyle = themeVar('--danger');
+    ctx.globalAlpha = .75;
+    ctx.lineWidth = Math.max(2, r * 0.26);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx - r*0.55, cy - r*0.55);
+    ctx.lineTo(cx + r*0.55, cy + r*0.55);
+    ctx.moveTo(cx + r*0.55, cy - r*0.55);
+    ctx.lineTo(cx - r*0.55, cy + r*0.55);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  function shade(hex, amt){
+    const n = parseInt(hex.slice(1), 16);
+    let r = (n >> 16) + amt, g = ((n >> 8) & 0xff) + amt, b = (n & 0xff) + amt;
+    r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); b = Math.max(0, Math.min(255, b));
+    return '#' + ((1<<24) + (r<<16) + (g<<8) + b).toString(16).slice(1);
+  }
+
+  function renderBoard(player, clearing){
+    const ctx = boardCtx[player];
+    const canvas = boardCanvas[player];
+    const cellBg = themeVar('--cell-bg');
+    const lineCol = themeVar('--cell-line');
+    ctx.fillStyle = cellBg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const st = players[player];
+    const highlight = new Set();
+    if (clearing){
+      for (const g of clearing.groups) for (const [x,y] of g.cells) highlight.add(x+','+y);
+      for (const key of clearing.ojamaToClear) highlight.add(key);
+    }
+
+    for (let x = 0; x < WIDTH; x++){
+      for (let y = 0; y < VISIBLE_ROWS; y++){ // 13段目(y=12)も含めて全段を表示し、盤面は最下端に密着させる
+        const rowFromTop = (VISIBLE_ROWS - 1) - y; // 0=盤面のいちばん上(13段目)、12=いちばん下
+        const drawY = TOP_MARGIN_PX + rowFromTop * CELL;
+        ctx.strokeStyle = lineCol;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x*CELL + .5, drawY + .5, CELL - 1, CELL - 1);
+        const cx = x*CELL + CELL/2, cy = drawY + CELL/2;
+        if (x === GAMEOVER_X && y === GAMEOVER_Y){
+          drawDeathMark(ctx, cx, cy, CELL*0.42);
+        }
+        const val = st.board[x][y];
+        if (val !== 0){
+          const isHi = highlight.has(x+','+y);
+          if (isHi){
+            ctx.save();
+            ctx.globalAlpha = 0.35;
+          }
+          drawPuyo(ctx, cx, cy, CELL*0.42, val);
+          if (isHi) ctx.restore();
+        }
+      }
+    }
+
+    // 13段目は12段目以下と繋がらない特別な段なので、薄暗くして区別する(ネクストのグレーより薄め)
+    ctx.fillStyle = 'rgba(90,90,90,0.28)';
+    ctx.fillRect(0, TOP_MARGIN_PX, CELL * WIDTH, CELL);
+
+    // 盤面(壁)の上端 = 組ぷよを操作する余白ゾーンとの境界線
+    ctx.strokeStyle = themeVar('--border-soft');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, TOP_MARGIN_PX);
+    ctx.lineTo(CELL*WIDTH, TOP_MARGIN_PX);
+    ctx.stroke();
+
+    // 操作中のツモ(手番側のみ)。13段目より上の余白ゾーンに表示する。
+    if (match.active === player && !match.winner && st.current){
+      drawFallingPiece(ctx, st.current);
+      drawLandingPreview(ctx, st.board, st.current);
+    }
+
+    document.getElementById('card'+player).classList.toggle('active', match.active === player && !match.winner);
+    document.getElementById('card'+player).classList.toggle('over', !!match.winner);
+  }
+
+  // 今操作中の組ぷよが、今の列・回転のまま落ちたら着地する行を求める(盤面は変更しない)。
+  // placePiece()と全く同じ順序ルール(DOWNは子が先/UPは軸が先、LEFT・RIGHTは互いに独立)で計算する。
+  function previewLanding(board, col, rot){
+    if (!canDrop(board, col, rot)) return null;
+    const cc = childColumn(col, rot);
+    let axisRow, childRow;
+    if (rot === DOWN){
+      childRow = board[col].indexOf(0);
+      axisRow = board[col].indexOf(0, childRow + 1);
+    } else if (cc === col){ // UP: 同じ列に軸が先、子が後
+      axisRow = board[col].indexOf(0);
+      childRow = board[col].indexOf(0, axisRow + 1);
+    } else { // LEFT / RIGHT: 別の列なのでお互い独立
+      axisRow = board[col].indexOf(0);
+      childRow = board[cc].indexOf(0);
+    }
+    return { axisCol: col, axisRow, childCol: cc, childRow };
+  }
+
+  // 落下位置プレビュー用の小さな色付きドット(本家ぷよぷよの着地位置ガイドに相当)。
+  function drawLandingDot(ctx, cx, cy, color){
+    const hex = PUYO_HEX[color];
+    if (!hex) return;
+    // 形で見分けるときは、ドットもそのぷよの形にする(v0.10.78)。小さいと形が分かりにくいので少し大きめに
+    puyoPath(ctx, cx, cy, CELL * (shapeMode ? 0.17 : 0.13), shapeMode ? PUYO_SHAPE[color] : 'circle');
+    ctx.fillStyle = hex;
+    ctx.globalAlpha = 0.85;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,.6)';
+    ctx.stroke();
+  }
+
+  // 今の列・回転のまま置いたら軸・子がどのマスに着地するかを、盤面上に小さな色付きドットで示す。
+  // 列移動・回転・ちぎり判定と全く同じcanDrop/childColumnを使っているので、実際の着地位置と必ず一致する。
+  function drawLandingPreview(ctx, board, cur){
+    const landing = previewLanding(board, cur.col, cur.rot);
+    if (!landing) return;
+    const cellCenter = (x, y) => {
+      const rowFromTop = (VISIBLE_ROWS - 1) - y;
+      return { cx: x*CELL + CELL/2, cy: TOP_MARGIN_PX + rowFromTop*CELL + CELL/2 };
+    };
+    if (landing.axisRow !== -1){
+      const p = cellCenter(landing.axisCol, landing.axisRow);
+      drawLandingDot(ctx, p.cx, p.cy, cur.axis);
+    }
+    if (landing.childRow !== -1){
+      const p = cellCenter(landing.childCol, landing.childRow);
+      drawLandingDot(ctx, p.cx, p.cy, cur.child);
+    }
+  }
+
+  function drawFallingPiece(ctx, cur){
+    const rowLower = TOP_MARGIN_PX - CELL/2;        // 壁のすぐ上の段の中心
+    const rowUpper = TOP_MARGIN_PX - CELL - CELL/2; // さらにもう1段上の中心
+    const axisX = cur.col*CELL + CELL/2;
+    let childX = axisX, axisY, childY;
+    if (cur.rot === UP){ axisY = rowLower; childY = rowUpper; }
+    else if (cur.rot === DOWN){ axisY = rowUpper; childY = rowLower; }
+    else {
+      axisY = rowLower; childY = rowLower;
+      childX = cur.rot === LEFT ? axisX - CELL : axisX + CELL;
+    }
+    drawPuyo(ctx, axisX, axisY, CELL*0.42, cur.axis);
+    drawPuyo(ctx, childX, childY, CELL*0.42, cur.child);
+  }
+
+  // 自摸の予告を16手すべて(1周分)、盤面の高さに合わせて縦に並べて表示する。
+  // 二人零和有限確定完全情報ゲームを志向し、未来の自摸は最初から確定・共有されているため隠す理由がない。
+  // 軸ぷよ・子ぷよは近づけて1組として見やすくし、列内でジグザグに振ってコンパクトに詰める。
+  // 2P側は盤面の左に置かれるため、ジグザグの向きも左右反転させて鏡写しにする。
+  // 現在の残り手数(cost)から、今の手番中に「ちぎり無し・連鎖無しの最良ケース」で
+  // あと何個先のネクスト(next0/1の列インデックス基準、0=今持っている組ぷよの次)まで
+  // 引けるかを数える。ちぎりや連鎖が発生すればコストの減りはこれより早くなるため、
+  // これは「少なくともここまでは引ける」という上限の目安になる。
+  function reachableAheadCount(cost){
+    let remaining = cost - 1; // 今持っている組ぷよを置く分で最低1消費する
+    let count = 0;
+    while (remaining > 0 && count < 16){
+      count++;
+      remaining -= 1;
+    }
+    return count;
+  }
+
+  function renderNextColumn(player){
+    const st = players[player];
+    const ctx = nextCtx[player];
+    const canvas = nextCanvas[player];
+    const mirrored = player === 1;
+    ctx.fillStyle = themeVar('--cell-bg');
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const n = 16;
+    const rowH = canvas.height / n;
+    const xCenter = canvas.width / 2;
+    const xOffset = canvas.width * 0.19;
+    const r = Math.min(rowH * 0.24, canvas.width * 0.16);
+    const pairGap = r * 1.15; // 軸・子の距離(近め)
+    const reachable = reachableAheadCount(st.cost); // これ以上先は今のターンでは引けない(目安)
+
+    // 描く順番: 先頭の組の枠 → 届かない側の背景 → 境目の線 → ぷよ(v0.10.74、shio さんの指摘)。
+    // 背景と線は同じ位置 yEdge を使い、線はぷよの後ろに描く(組の上下の端が隣の段にはみ出すので、前に描くとぷよを横切る)。
+    // 先頭の枠を背景より先に描くので、先頭の組から届かないときも先頭まで暗くなる(今までは枠が背景を隠して境目がずれて見えた)
+    ctx.fillStyle = themeVar('--panel-2');
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(2, 1, canvas.width - 4, rowH - 2, 4);
+    else ctx.rect(2, 1, canvas.width - 4, rowH - 2);
+    ctx.fill();
+
+    // 今の残り手数(ちぎり・連鎖が無い最良ケース)では届かないツモは、背景を13段目と同じ色で暗くし、境目に線を引く。
+    // 球の色はくすませない(色の見分けがつきにくくなるため、v0.10.72。shio さんの指摘)。
+    // ちぎりや連鎖でcostが変わるたびにrenderAll()経由で再描画されるので自動的に追従する。
+    if (reachable < n){
+      const yEdge = Math.round(rowH * reachable);
+      ctx.fillStyle = 'rgba(90,90,90,0.28)';   // 盤面の13段目と同じ
+      ctx.fillRect(0, yEdge, canvas.width, canvas.height - yEdge);
+      ctx.fillStyle = themeVar('--accent');     // 境目の線(届く数が0のときは一番上)
+      ctx.fillRect(0, Math.max(0, yEdge - 1), canvas.width, 2);
+    }
+
+    for (let i = 0; i < n; i++){
+      const idx = (st.tsumoCount + i) % 16;
+      const pat = TSUMO_PATTERNS[match.order[idx]];
+      const rowTop = rowH * i;
+      const cy = rowTop + rowH / 2;
+      let zig = (i % 2 === 0) ? -1 : 1;
+      if (mirrored) zig = -zig;
+      const cx = xCenter + zig * xOffset;
+      drawPuyo(ctx, cx, cy - pairGap, r, pat.axis);
+      drawPuyo(ctx, cx, cy + pairGap, r, pat.child);
+    }
+  }
+
+  // 盤面上部のおじゃま予告ドット: 今おじゃまが落ちるとしたらどの列に何個落ちるかを表示する。
+  function renderOjamaPreview(player){
+    const ctx = ojamaCtx[player];
+    const canvas = ojamaCanvas[player];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const counts = previewOjamaCounts(player);
+    const cy = canvas.height / 2;
+    for (let c = 0; c < WIDTH; c++){
+      const cx = c*CELL + CELL/2;
+      const count = counts[c];
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI*2);
+      ctx.fillStyle = themeVar('--border-soft');
+      ctx.globalAlpha = 0.7;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      if (count > 0){
+        const r = Math.min(3 + count * 1.1, 7.5);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI*2);
+        ctx.fillStyle = PUYO_HEX[OJAMA_COLOR];
+        ctx.fill();
+        if (count >= 4){
+          ctx.fillStyle = themeVar('--panel');
+          ctx.font = 'bold 8px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(String(count), cx, cy + 0.5);
+        }
+      }
+    }
+  }
+
+  function renderSide(player){
+    const st = players[player];
+    document.getElementById('score'+player).textContent = st.totalPoint;
+    document.getElementById('chain'+player).textContent = st.maxRensasu;
+    const ojamaEl = document.getElementById('ojama'+player);
+    ojamaEl.textContent = st.ojamaYokoku;
+    ojamaEl.classList.toggle('warn', st.ojamaYokoku > 0);
+
+    document.getElementById('costNum'+player).textContent = Math.max(0, st.cost).toFixed(1);
+
+    const gauge = document.getElementById('cost'+player);
+    gauge.innerHTML = '';
+    const pips = Math.max(1, Math.min(10, Math.ceil(st.cost)));
+    const total = Math.max(pips, 1);
+    for (let i=0; i<total; i++){
+      const el = document.createElement('i');
+      if (i < Math.ceil(Math.max(st.cost,0))) el.classList.add('on');
+      gauge.appendChild(el);
+    }
+  }
+
+  function renderAll(){
+    for (const p of [0,1]){
+      renderBoard(p);
+      renderNextColumn(p);
+      renderOjamaPreview(p);
+      renderSide(p);
+    }
+    const banner = document.getElementById('turnText');
+    if (match.winner != null){
+      banner.textContent = (match.winner === 0 ? '1P' : '2P') + ' の勝利!';
+    } else {
+      const who = (match.active === 0 ? '1P' : '2P');
+      // AIが組み立て計画に沿って置いている間は、それが分かるようにする
+      const building = aiEnabled[match.active] && aiBuilding[match.active];
+      banner.textContent = who + 'の手番です' + (building ? ' — 大連鎖を構築中' : '');
+    }
+    if (match.replay) banner.textContent = '再生中 — ' + banner.textContent;
+  }
+
+  function showOverlay(winner){
+    document.getElementById('overlayTitle').textContent = (winner === 0 ? '1P WIN!' : '2P WIN!');
+    document.getElementById('overlaySub').textContent = (winner === 0 ? '2P' : '1P') + ' の盤面が埋まりました';
+    document.getElementById('overlay').classList.add('show');
+  }
+  function hideOverlay(){
+    document.getElementById('overlay').classList.remove('show');
+  }
+
+  // ==== UI配線 ====
+  function updateControlsNote(){
+    const note = document.getElementById('controlsNote');
+    if (soloControl){
+      note.innerHTML = '<span><b>共通操作(ひとり操作中)</b>: ←→移動 / ↓設置 / Z・X 回転 ― 常にその時の手番側を操作します</span>';
+    } else {
+      note.innerHTML = '<span><b>1P</b>: ←→移動 / ↓設置 / Z・X 回転</span><span><b>2P</b>: A D 移動 / S 設置 / Q・E 回転</span>';
+    }
+  }
+
+  document.getElementById('btnNew').addEventListener('click', () => newMatch());
+  document.getElementById('btnAgain').addEventListener('click', () => newMatch());
+  // ---- 設定(v0.10.76): テーマと、ぷよの色・形。どれも変えた時点でブラウザに保存する ----
+  const curTheme = () => document.documentElement.getAttribute('data-theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  function setTheme(next){
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}   // 次に開いたときもこのテーマ(v0.10.73)
+    renderSettings(); renderAll();
+  }
+  let editingSlot = 0;   // 変えようとしている色の番号(1〜4)。0 なら無し
+  function renderSettings(){
+    const th = curTheme();
+    document.getElementById('btnThemeDark').classList.toggle('primary', th === 'dark');
+    document.getElementById('btnThemeLight').classList.toggle('primary', th === 'light');
+    const slotOf = (hex) => [1, 2, 3, 4].find(k => PUYO_HEX[k] === hex) || 0;
+    const box = document.getElementById('colorSwatches');
+    box.innerHTML = '';
+    for (const c of COLOR_CHOICES){
+      const slot = slotOf(c.hex);
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'swatch' + (slot ? ' on' : '') + (slot && slot === editingSlot ? ' editing' : '');
+      b.style.background = c.hex; b.title = c.name + (slot ? '(使用中)' : ''); b.setAttribute('aria-label', b.title);
+      b.innerHTML = '<span class="chk">✓</span>';
+      b.addEventListener('click', () => pickColor(c.hex));
+      box.appendChild(b);
+    }
+    const ob = document.getElementById('ojamaSwatches');
+    ob.innerHTML = '';
+    for (const c of OJAMA_CHOICES){
+      const on = PUYO_HEX[5] === c.hex;
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'swatch' + (on ? ' on' : '');
+      b.style.background = c.hex; b.title = c.name + (on ? '(使用中)' : ''); b.setAttribute('aria-label', b.title);
+      b.innerHTML = '<span class="chk">✓</span>';
+      b.addEventListener('click', () => { PUYO_HEX[5] = c.hex; saveLook(); renderSettings(); renderAll(); });
+      ob.appendChild(b);
+    }
+    const bs = document.getElementById('btnShapes');
+    bs.textContent = shapeMode ? 'オン' : 'オフ';
+    bs.classList.toggle('primary', shapeMode);
+  }
+  // 色の候補をクリックしたとき: 使用中の色 → 変える色に選ぶ(もう一度でやめる、別の使用中の色なら入れ替え)/ 使っていない色 → 選んでいる色をそこへ移す
+  function pickColor(hex){
+    const slot = [1, 2, 3, 4].find(k => PUYO_HEX[k] === hex) || 0;
+    if (!editingSlot){ if (slot) editingSlot = slot; }
+    else if (slot === editingSlot) editingSlot = 0;
+    else if (slot){ const t = PUYO_HEX[editingSlot]; PUYO_HEX[editingSlot] = PUYO_HEX[slot]; PUYO_HEX[slot] = t; editingSlot = 0; saveLook(); }
+    else { PUYO_HEX[editingSlot] = hex; editingSlot = 0; saveLook(); }
+    renderSettings(); renderAll();
+  }
+  document.getElementById('btnThemeDark').addEventListener('click', () => setTheme('dark'));
+  document.getElementById('btnThemeLight').addEventListener('click', () => setTheme('light'));
+  document.getElementById('btnShapes').addEventListener('click', () => { shapeMode = !shapeMode; saveLook(); renderSettings(); renderAll(); });
+  document.getElementById('btnSettings').addEventListener('click', (e) => {
+    const sp = document.getElementById('settingsPanel');
+    sp.hidden = !sp.hidden;
+    e.currentTarget.classList.toggle('primary', !sp.hidden);
+    if (!sp.hidden){ editingSlot = 0; renderSettings(); }
+  });
+  // ひとり操作も、選んだものをブラウザに覚えておく(v0.10.75。テーマと同じ)
+  const SOLO_KEY = 'puyo.solo';
+  try { soloControl = localStorage.getItem(SOLO_KEY) === '1'; } catch (e) {}
+  document.getElementById('btnSolo').classList.toggle('primary', soloControl);
+  document.getElementById('btnSolo').addEventListener('click', (e) => {
+    soloControl = !soloControl;
+    e.currentTarget.classList.toggle('primary', soloControl);
+    try { localStorage.setItem(SOLO_KEY, soloControl ? '1' : '0'); } catch (e2) {}
+    updateControlsNote();
+  });
+  [0, 1].forEach((p) => {
+    document.getElementById('aiToggle' + p).addEventListener('click', (e) => {
+      aiEnabled[p] = !aiEnabled[p];
+      e.currentTarget.classList.toggle('primary', aiEnabled[p]);
+      e.currentTarget.textContent = aiEnabled[p] ? '🤖 CPU中' : '🤖 CPU';
+      maybeTriggerAI();
+    });
+  });
+
+  // ---- ログ・再生の操作 ----
+  function openLogPanel(){
+    const lp = document.getElementById('logPanel');
+    lp.hidden = false;
+    document.getElementById('btnLog').classList.add('primary');
+  }
+  document.getElementById('btnLog').addEventListener('click', (e) => {
+    const lp = document.getElementById('logPanel');
+    if (lp.hidden) openLogPanel(); else { lp.hidden = true; e.currentTarget.classList.remove('primary'); }
+  });
+  // 対戦後の「ログ・再生」: 終わった対戦のログを貼り付け欄に入れた状態で開く(v0.10.79、shio さんの希望。そのまま「再生する」を押せる)
+  document.getElementById('btnOverlayLog').addEventListener('click', () => {
+    hideOverlay(); openLogPanel();
+    document.getElementById('logIn').value = currentLogText();
+    document.getElementById('logPlayMsg').textContent = '';
+    document.getElementById('logPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  // コピーは今の対戦のログ(v0.10.79 からコピー用の欄は無くし、貼り付け欄の隣のボタンだけにした)
+  document.getElementById('btnLogCopy').addEventListener('click', () => {
+    const text = currentLogText(), msg = document.getElementById('logPlayMsg');
+    msg.classList.remove('err');
+    const fallback = () => { const ta = document.getElementById('logIn'); ta.value = text; ta.focus(); ta.select(); msg.textContent = '貼り付け欄に入れて選択しました。Ctrl+C(⌘C)でコピーしてください。'; };
+    try {
+      navigator.clipboard.writeText(text).then(() => { msg.textContent = 'コピーしました(' + text.length + '文字)。'; }, fallback);
+    } catch (err){ fallback(); }
+  });
+  document.getElementById('btnLogPlay').addEventListener('click', () => {
+    const msg = document.getElementById('logPlayMsg');
+    const dec = decodeLog(document.getElementById('logIn').value);
+    msg.classList.toggle('err', !!dec.error);
+    if (dec.error){ msg.textContent = dec.error; return; }
+    const bad = startReplay(dec);
+    msg.textContent = bad >= 0 ? (bad + 1) + '手目がルールに合わないので、その前までを再生します。' : dec.moves.length + '手のログを読み込みました。';
+    document.getElementById('replayBar').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  document.getElementById('rpFirst').addEventListener('click', () => { stopAutoPlay(); replayGo(0); });
+  document.getElementById('rpPrev').addEventListener('click', () => { stopAutoPlay(); if (match.replay) replayGo(match.replay.idx - 1); });
+  document.getElementById('rpNext').addEventListener('click', () => { stopAutoPlay(); if (match.replay) replayStep(); });
+  document.getElementById('rpLast').addEventListener('click', () => { stopAutoPlay(); if (match.replay) replayGo(match.replay.moves.length); });
+  document.getElementById('rpSlider').addEventListener('input', (e) => { stopAutoPlay(); replayGo(+e.target.value); });
+  document.getElementById('rpAuto').addEventListener('click', (e) => {
+    if (replayTimer){ stopAutoPlay(); return; }
+    if (!match.replay) return;
+    if (match.replay.idx >= match.replay.moves.length) replayGo(0);
+    e.currentTarget.textContent = '⏸ 停止';
+    // 自動再生: 1手ずつ演出を最後まで見せ、速さの設定だけ間を置いて次の手へ(速さは途中で変えても次の手から効く)
+    const myTimer = replayTimer = { on: true };
+    (async () => {
+      while (replayTimer === myTimer && match && match.replay && match.replay.idx < match.replay.moves.length){
+        await replayStep();
+        if (replayTimer !== myTimer) return;
+        await wait(+document.getElementById('rpSpeed').value);
+      }
+      if (replayTimer === myTimer) stopAutoPlay();
+    })();
+  });
+  document.getElementById('rpBranch').addEventListener('click', () => branchFromReplay());
+  document.getElementById('rpExit').addEventListener('click', () => newMatch());
+
+  updateControlsNote();
+  // AIサーバを探してから対戦を始める(無ければそのまま内蔵AIで始まる)
+  detectAIServer().then(newMatch, newMatch);
+})();
+</script>

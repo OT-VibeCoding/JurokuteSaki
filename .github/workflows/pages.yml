@@ -1,0 +1,62 @@
+# GitHub Pages に最新AIのブラウザ版を置く(v0.10.88)。web/export_repo.js が .github/workflows/pages.yml に写す。
+# 流れ: JS をまとめる → C++ を WebAssembly に変換 → 手本(PC 版の答え・手)と同じか確かめる → 公開
+# 確かめで1つでも違えば、公開しないで止まる。
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+
+      - name: JS をまとめる
+        run: node web/build_web.js --out dist
+
+      - name: C++ を WebAssembly に変換
+        run: >
+          em++ -O2 -std=c++17 native/finish_wasm.cpp -o dist/ai/finish_wasm.js
+          -sMODULARIZE=1 -sEXPORT_NAME=createFinish -sENVIRONMENT=web,worker,node -sSINGLE_FILE=1
+          -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=128MB -sSTACK_SIZE=1MB
+          -sEXPORTED_FUNCTIONS=_finish_query -sEXPORTED_RUNTIME_METHODS=cwrap
+
+      - name: 確かめ 1/2 - C++ の読みの答えが手本と同じか
+        run: node web/test_queries.js --wasm dist/ai/finish_wasm.js
+
+      - name: 確かめ 2/2 - 3局を打ち直して手本と同じ手か
+        run: node web/test_web.js --wasm dist/ai/finish_wasm.js --dist dist
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
