@@ -1,4 +1,4 @@
-// C++ の読みが手本(web/record_ref.js で finish.exe から作ったもの)と同じ答えを返すかを比べる(v0.10.88)。
+// C++ の読みが手本(web/record_ref.js で PC の C++ から作ったもの)と同じ答えを返すかを比べる(v0.10.88)。
 //
 //   node web/test_queries.js --exe native/finish_dev.exe      // PC 版
 //   node web/test_queries.js --wasm dist/ai/finish_wasm.js    // ブラウザ版(WebAssembly)

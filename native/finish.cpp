@@ -307,7 +307,8 @@ struct Search {
           b = keep; hash = keepH;
         }
       }
-      std::sort(next.begin(), next.end(), [](const Node& x, const Node& y){ return x.score > y.score; });
+      // 同点の順番は元のまま(stable_sort、v0.10.88)。std::sort だと同点の並びが作る環境(Windows / Linux / WebAssembly)で変わり、残す盤面も変わっていた
+      std::stable_sort(next.begin(), next.end(), [](const Node& x, const Node& y){ return x.score > y.score; });
       if ((int)next.size() > beam) next.resize(beam);
       cur.swap(next);
     }
@@ -399,8 +400,8 @@ static bool handleOne(){
     s.hash = hashFull(s.b);
     if (cost2 > 0 && s.maxPlace > 0) s.beamThenTail(cost2, beam, tail);
     auto byUsed = [](const Fire& a, const Fire& b){ return a.used2 < b.used2; };
-    std::sort(s.pareto.begin(), s.pareto.end(), byUsed);
-    std::sort(s.pareto2.begin(), s.pareto2.end(), byUsed);
+    std::stable_sort(s.pareto.begin(), s.pareto.end(), byUsed);   // 同点の順番は元のまま(上と同じ理由)
+    std::stable_sort(s.pareto2.begin(), s.pareto2.end(), byUsed);
     printf("A %lld %d %d", s.nodes, s.complete ? 1 : 0, (int)s.pareto.size());
     // keepMode 5 は、1連鎖の表のあとに2連鎖の表(数 + 中身)を続ける
     for (int list = 0; list < (s.base() == 5 ? 2 : 1); list++){
